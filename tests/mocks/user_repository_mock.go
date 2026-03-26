@@ -50,6 +50,14 @@ func (m *MockUserRepo) FindAll() ([]models.User, error) {
 	return []models.User{*m.User}, nil
 }
 
+func (m *MockUserRepo) FindAllWithFilter(page, limit int, search, role string) ([]models.User, int64, error) {
+	// Minimal stub: for unit tests we don't need paging/filter logic.
+	if m.User == nil {
+		return []models.User{}, 0, nil
+	}
+	return []models.User{*m.User}, 1, nil
+}
+
 func (m *MockUserRepo) Delete(id uint) error {
 	// Minimal stub for unit tests.
 	// In tests that need this behavior, you can extend it to track calls/ids.
