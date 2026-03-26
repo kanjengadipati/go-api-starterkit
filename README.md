@@ -1,48 +1,55 @@
-# Go Auth
+# Go Auth App
 
-A simple authentication API built with Go and Gin.  
-It features user registration, login, JWT-based authentication, and protected routes.
+A simple, modular authentication API built with Go and Gin.  
+Supports user registration, login, JWT authentication, and protected routes.
 
-## Features
+## 🚀 Features
 
-- User Registration
-- User Login
-- Protected profile and logout routes
+- User registration and login
+- JWT-based authentication
 - Password hashing with bcrypt
-- JWT Authentication
-- Unit tests and repository mocking for controller logic
+- Secure protected routes (e.g., `/profile`)
+- Simple user roles (admin, user)
+- Repository and model separation for easy testing/mocking
+- Unit tests with mock repositories
 
-## Getting Started
+## 🛠️ Getting Started
 
 ### Prerequisites
 
-- Go 1.18+ installed (https://golang.org/dl/)
-- (Optional) Docker for containerization
+- Go 1.18+ ([Download](https://golang.org/dl/))
+- Docker (optional, for containerization)
 
 ### Installation
 
-Clone the repository:
+Clone this repository:
 
 ```sh
 git clone https://github.com/your-username/go-auth-app.git
 cd go-auth-app
 ```
 
-Download dependencies:
+Install dependencies:
 
 ```sh
 go mod tidy
 ```
 
+### Configuration
+
+- Update your database and secret configuration in `config/` as needed.
+
 ### Running the App
+
+Start the API server:
 
 ```sh
 go run main.go
 ```
 
-By default, the server runs on `localhost:8080`.
+- Server will start at `http://localhost:8080` by default.
 
-### API Endpoints
+## 📚 API Endpoints
 
 - `POST /register` — Register a new user  
   **Body:**  
@@ -54,7 +61,7 @@ By default, the server runs on `localhost:8080`.
   }
   ```
 
-- `POST /login` — Login a user  
+- `POST /login` — User login  
   **Body:**  
   ```json
   {
@@ -63,11 +70,11 @@ By default, the server runs on `localhost:8080`.
   }
   ```
 
-- `GET /profile` — Get the current user profile (JWT required in headers)
+- `GET /profile` — Fetch authenticated user's profile (requires JWT in Authorization header)
 
-- `POST /logout` — Logout (implement according to your JWT invalidation strategy)
+- `POST /logout` — Logout a user (handle JWT removal/invalidation as needed)
 
-### Running Tests
+## 🧪 Running Tests
 
 Run all tests with:
 
@@ -75,28 +82,31 @@ Run all tests with:
 go test ./tests/...
 ```
 
-## Project Structure
+- Includes unit tests for controllers and repository with mocks.
+
+## 📂 Project Structure
 
 ```
 .
-├── controllers/        # HTTP handler logic
-├── models/             # Data models
-├── repository/         # Data access layer
-├── tests/              # Unit tests and mocks
-└── main.go             # App entry point
+├── controllers/         # HTTP route handlers
+├── dto/                 # Data transfer objects
+├── models/              # GORM data models
+├── repositories/        # Repository implementations and interfaces
+├── tests/               # Unit tests and repository mocks
+├── config/              # Configuration (DB, JWT)
+└── main.go              # Application entrypoint
 ```
 
-## Contributing
+## 🤝 Contributing
 
-1. Fork the repo
-2. Create your feature branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -am 'feat: add new feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a pull request
+1. Fork this repository
+2. Create a new branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -am 'feat: add your feature'`)
+4. Push to your fork (`git push origin feature/your-feature`)
+5. Open a Pull Request
 
-## License
+## 📄 License
 
-MIT
+MIT License
 
-
-
+---

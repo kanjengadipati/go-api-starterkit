@@ -7,7 +7,7 @@ type User struct {
 	ID           uint
 	Name         string
 	Email        string `gorm:"unique"`
-	Password     string
+	Password     string `json:"-"`
 	Role         string // user / admin
 	RefreshToken string
 }
