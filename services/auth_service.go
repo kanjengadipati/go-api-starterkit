@@ -2,18 +2,17 @@ package services
 
 import (
 	"errors"
-	"fmt"
-	"go-auth-app/config"
+
 	"go-auth-app/models"
 	"go-auth-app/repositories"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct {
 	UserRepo repositories.UserRepository
+	JWT      *JWTService
 }
 
 type AuthTokens struct {
@@ -38,50 +37,30 @@ func (s *AuthService) Login(email, password string) (*AuthTokens, error) {
 		return nil, errors.New("invalid credentials")
 	}
 
-	fmt.Println("LOGIN SECRET:", string(config.JWTSecret))
-
-	// ✅ check password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		return nil, errors.New("invalid credentials")
 	}
 
-	// ✅ generate access token
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"role":    user.Role,
-		"exp":     time.Now().Add(time.Minute * 15).Unix(),
-	})
-
-	// ✅ generate refresh token
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"role":    user.Role,
-		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(),
-	})
-
-	var jwtKey = config.JWTSecret
-
-	accessTokenString, err := accessToken.SignedString(jwtKey)
+	accessToken, err := s.JWT.GenerateToken(user.ID, user.Role, time.Minute*15)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshTokenString, err := refreshToken.SignedString(jwtKey)
+	refreshToken, err := s.JWT.GenerateToken(user.ID, user.Role, time.Hour*24*7)
 	if err != nil {
 		return nil, err
 	}
 
-	// ✅ simpan refresh token
-	user.RefreshToken = refreshTokenString
+	user.RefreshToken = refreshToken
 	err = s.UserRepo.Update(user)
 	if err != nil {
 		return nil, err
 	}
 
 	return &AuthTokens{
-		AccessToken:  accessTokenString,
-		RefreshToken: refreshTokenString,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}, nil
 }
 
@@ -100,4 +79,53 @@ func (s *AuthService) Logout(userID uint, refreshToken string) error {
 	user.RefreshToken = ""
 
 	return s.UserRepo.Update(user)
+}
+
+func (s *AuthService) RefreshToken(oldRefreshToken string) (*AuthTokens, error) {
+	// ✅ validate token via JWT service
+	claims, err := s.JWT.ValidateToken(oldRefreshToken)
+	if err != nil {
+		return nil, errors.New("invalid refresh token")
+	}
+
+	userIDFloat, ok := claims["user_id"].(float64)
+	if !ok {
+		return nil, errors.New("invalid token")
+	}
+
+	userID := uint(userIDFloat)
+
+	// ✅ ambil user dari repo
+	user, err := s.UserRepo.FindByID(userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	// ✅ validasi refresh token match DB
+	if user.RefreshToken != oldRefreshToken {
+		return nil, errors.New("invalid refresh token")
+	}
+
+	// ✅ generate new tokens
+	accessToken, err := s.JWT.GenerateToken(user.ID, user.Role, time.Minute*15)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken, err := s.JWT.GenerateToken(user.ID, user.Role, time.Hour*24*7)
+	if err != nil {
+		return nil, err
+	}
+
+	// ✅ rotate refresh token
+	user.RefreshToken = refreshToken
+	err = s.UserRepo.Update(user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AuthTokens{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }

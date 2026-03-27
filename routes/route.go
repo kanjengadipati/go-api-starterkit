@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"go-auth-app/config"
 	"go-auth-app/controllers"
 	"go-auth-app/middleware"
 	"go-auth-app/repositories"
@@ -10,20 +11,21 @@ import (
 )
 
 func SetupRoutes(router *gin.Engine) {
+	repo := &repositories.UserRepoDB{}
 
-	// ✅ Repository
+	jwtService := services.NewJWTService(config.JWTSecret)
+
 	userRepo := &repositories.UserRepoDB{}
 
-	// ✅ Service
 	authService := &services.AuthService{
-		UserRepo: userRepo,
+		UserRepo: repo,
+		JWT:      jwtService,
 	}
 
 	userService := &services.UserService{
 		UserRepo: userRepo,
 	}
 
-	// ✅ Controller (pakai service, bukan repo lagi)
 	authController := controllers.AuthController{
 		AuthService: authService,
 	}
@@ -39,13 +41,13 @@ func SetupRoutes(router *gin.Engine) {
 	// ========================
 	api.POST("/register", authController.Register)
 	api.POST("/login", authController.Login)
-	api.POST("/refresh", middleware.RefreshToken)
+	api.POST("/refresh", authController.RefreshToken)
 
 	// ========================
 	// 🔐 PROTECTED ROUTES
 	// ========================
 	protected := api.Group("/")
-	protected.Use(middleware.AuthMiddleware())
+	protected.Use(middleware.AuthMiddleware(jwtService))
 
 	protected.GET("/profile", userController.Profile)
 	protected.POST("/logout", authController.Logout)

@@ -4,9 +4,6 @@ import (
 	"go-auth-app/dto"
 	"go-auth-app/models"
 	"go-auth-app/services"
-	"go-auth-app/utils"
-
-	"os"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -15,8 +12,6 @@ import (
 type AuthController struct {
 	AuthService *services.AuthService
 }
-
-var jwtKey = []byte(os.Getenv("JWT_SECRET"))
 
 func (a *AuthController) Register(c *gin.Context) {
 	var input dto.RegisterRequest
@@ -48,17 +43,17 @@ func (a *AuthController) Login(c *gin.Context) {
 	var input dto.LoginRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		utils.ValidationError(c, utils.FormatValidationError(err))
+		c.JSON(400, gin.H{"error": "Invalid input"})
 		return
 	}
 
 	tokens, err := a.AuthService.Login(input.Email, input.Password)
 	if err != nil {
-		utils.Error(c, 401, "Invalid credentials")
+		c.JSON(401, gin.H{"error": err.Error()})
 		return
 	}
 
-	utils.Success(c, tokens, nil)
+	c.JSON(200, tokens)
 }
 
 func (a *AuthController) Logout(c *gin.Context) {
@@ -97,4 +92,12 @@ func (a *AuthController) RefreshToken(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Invalid request"})
 		return
 	}
+
+	tokens, err := a.AuthService.RefreshToken(body.RefreshToken)
+	if err != nil {
+		c.JSON(401, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, tokens)
 }
