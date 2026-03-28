@@ -1,14 +1,13 @@
 package controllers
 
 import (
-	"go-auth-app/dto"
-	"go-auth-app/models"
-	"go-auth-app/services"
-	"log"
 	"net/http"
 
+	"go-auth-app/dto"
+	"go-auth-app/services"
+	"go-auth-app/utils"
+
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthController struct {
@@ -19,71 +18,62 @@ func (a *AuthController) Register(c *gin.Context) {
 	var input dto.RegisterRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), 14)
-
-	user := models.User{
-		Name:     input.Name,
-		Email:    input.Email,
-		Password: string(hashedPassword),
-		Role:     "user",
-	}
-
+	// Delegate password hashing and uniqueness check to the AuthService.
+	user := utils.DtoToUser(&input)
 	err := a.AuthService.Register(&user, input.Password)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to create user"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "User registered"})
+	c.JSON(http.StatusOK, gin.H{"message": "User registered"})
 }
 
 func (a *AuthController) Login(c *gin.Context) {
 	var input dto.LoginRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid input"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	tokens, err := a.AuthService.Login(input.Email, input.Password)
+	deviceID := c.GetHeader("X-Device-ID")
+	userAgent := c.GetHeader("User-Agent")
+	ipAddress := c.ClientIP()
+
+	tokens, err := a.AuthService.Login(input.Email, input.Password, deviceID, userAgent, ipAddress)
 	if err != nil {
-		c.JSON(401, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(200, tokens)
+	c.JSON(http.StatusOK, tokens)
 }
 
 func (a *AuthController) Logout(c *gin.Context) {
-
-	// ✅ ambil user dari middleware
-	userID, exists := c.Get("user_id")
-	if !exists {
+	userID, ok := utils.GetUserIDFromContext(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	// ✅ ambil device id dari header
 	deviceID := c.GetHeader("X-Device-ID")
 	if deviceID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "device id required"})
 		return
 	}
 
-	// ✅ call service
-	err := a.AuthService.Logout(userID.(uint), deviceID)
+	err := a.AuthService.Logout(userID, deviceID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "logout success",
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "logout success"})
 }
 
 func (a *AuthController) RefreshToken(c *gin.Context) {
@@ -92,38 +82,33 @@ func (a *AuthController) RefreshToken(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
-
-	log.Println("refresh token", body.RefreshToken)
 
 	tokens, err := a.AuthService.RefreshToken(body.RefreshToken)
 	if err != nil {
-		c.JSON(401, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(200, tokens)
+	c.JSON(http.StatusOK, tokens)
 }
 
 func (a *AuthController) Profile(c *gin.Context) {
-	userID, exists := c.Get("user_id")
-
-	if !exists {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+	userID, ok := utils.GetUserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	// ambil user dari repository
-	user, err := a.AuthService.GetProfile(userID.(uint))
+	user, err := a.AuthService.GetProfile(userID)
 	if err != nil {
-		c.JSON(404, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	// response (hindari kirim password!)
-	c.JSON(200, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"id":    user.ID,
 		"name":  user.Name,
 		"email": user.Email,

@@ -2,7 +2,6 @@ package services
 
 import (
 	"errors"
-	"log"
 
 	"go-auth-app/models"
 	"go-auth-app/repositories"
@@ -39,23 +38,22 @@ func (s *AuthService) Register(user *models.User, password string) error {
 	return s.UserRepo.Create(user)
 }
 
-func (s *AuthService) Login(email, password string) (*AuthTokens, error) {
+func (s *AuthService) Login(email, password, deviceID, userAgent, ipAddress string) (*AuthTokens, error) {
 	user, err := s.UserRepo.FindByEmail(email)
 	if err != nil {
 		return nil, errors.New("invalid credentials")
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
-	if err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		return nil, errors.New("invalid credentials")
 	}
 
-	accessToken, err := s.JWT.GenerateToken(user.ID, user.Role, time.Minute*15, TokenAccess)
+	accessToken, err := s.JWT.GenerateToken(user.ID, user.Role, 15*time.Minute, TokenAccess)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := s.JWT.GenerateToken(user.ID, user.Role, time.Hour*24*7, TokenRefresh)
+	refreshToken, err := s.JWT.GenerateToken(user.ID, user.Role, 7*24*time.Hour, TokenRefresh)
 	if err != nil {
 		return nil, err
 	}
@@ -64,17 +62,14 @@ func (s *AuthService) Login(email, password string) (*AuthTokens, error) {
 
 	refreshTokenModel := &models.RefreshToken{
 		UserID:    user.ID,
-		TokenHash: string(tokenHash),
-		DeviceID:  "web",       // TODO: Use actual device info from request context
-		UserAgent: "browser",   // TODO: Get from request context
-		IPAddress: "127.0.0.1", // TODO: Get from request context
+		TokenHash: tokenHash,
+		DeviceID:  deviceID,
+		UserAgent: userAgent,
+		IPAddress: ipAddress,
 		ExpiredAt: time.Now().Add(7 * 24 * time.Hour),
 	}
 
-	// Optionally remove old tokens for the user & device before storing (not implemented here)
-	err = s.RefreshTokenRepo.Save(refreshTokenModel)
-
-	if err != nil {
+	if err := s.RefreshTokenRepo.Save(refreshTokenModel); err != nil {
 		return nil, err
 	}
 
@@ -99,81 +94,81 @@ func (s *AuthService) LogoutAll(userID uint) error {
 }
 
 func (s *AuthService) RefreshToken(oldRefreshToken string) (*AuthTokens, error) {
-
-	// ✅ validate JWT
 	claims, err := s.JWT.ValidateToken(oldRefreshToken)
 	if err != nil {
 		return nil, errors.New("invalid refresh token")
 	}
 
+	// Check token type
 	if claims["type"] != TokenRefresh {
 		return nil, errors.New("invalid token type")
 	}
 
-	userID := uint(claims["user_id"].(float64))
+	userID, ok := claims["user_id"].(float64)
+	if !ok {
+		return nil, errors.New("invalid user id in token claims")
+	}
+	uid := uint(userID)
 
-	// 🔥 ambil semua token dari DB
-	tokens, err := s.RefreshTokenRepo.FindByUser(userID)
+	// Hash old refresh token and find matching token in DB
+	tokens, err := s.RefreshTokenRepo.FindByUser(uid)
 	if err != nil {
 		return nil, err
 	}
+	oldHash := utils.HashToken(oldRefreshToken)
 
-	hashed := utils.HashToken(oldRefreshToken)
-	log.Println("HASHED:", hashed)
-
-	var matched *models.RefreshToken
-
+	var matchedToken *models.RefreshToken
 	for i := range tokens {
-		if tokens[i].TokenHash == hashed {
-			matched = &tokens[i]
+		if tokens[i].TokenHash == oldHash {
+			matchedToken = &tokens[i]
 			break
 		}
 	}
-
-	if matched == nil {
+	if matchedToken == nil {
 		return nil, errors.New("invalid refresh token")
 	}
 
-	// 🔥 cek expired
-	if time.Now().After(matched.ExpiredAt) {
+	// Check expiration
+	if time.Now().After(matchedToken.ExpiredAt) {
 		return nil, errors.New("refresh token expired")
 	}
 
-	// 🔥 ROTATION → delete lama
-	err = s.RefreshTokenRepo.DeleteByID(matched.ID)
+	// Rotation: remove old token
+	if err := s.RefreshTokenRepo.DeleteByID(matchedToken.ID); err != nil {
+		return nil, err
+	}
+
+	// Generate new tokens
+	user, err := s.UserRepo.FindByID(uid)
 	if err != nil {
 		return nil, err
 	}
 
-	// 🔥 generate baru
-	accessToken, err := s.JWT.GenerateToken(userID, "", time.Minute*15, TokenAccess)
+	accessToken, err := s.JWT.GenerateToken(uid, user.Role, 15*time.Minute, TokenAccess)
+	if err != nil {
+		return nil, err
+	}
+	newRefreshToken, err := s.JWT.GenerateToken(uid, user.Role, 7*24*time.Hour, TokenRefresh)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := s.JWT.GenerateToken(userID, "", time.Hour*24*7, TokenRefresh)
-	if err != nil {
-		return nil, err
-	}
-
-	// 🔥 simpan baru
-	newHash := utils.HashToken(refreshToken)
-
-	err = s.RefreshTokenRepo.Save(&models.RefreshToken{
-		UserID:    userID,
+	newHash := utils.HashToken(newRefreshToken)
+	newToken := &models.RefreshToken{
+		UserID:    uid,
 		TokenHash: newHash,
-		DeviceID:  matched.DeviceID,
-		UserAgent: matched.UserAgent,
-		IPAddress: matched.IPAddress,
+		DeviceID:  matchedToken.DeviceID,
+		UserAgent: matchedToken.UserAgent,
+		IPAddress: matchedToken.IPAddress,
 		ExpiredAt: time.Now().Add(7 * 24 * time.Hour),
-	})
-	if err != nil {
+	}
+	if err := s.RefreshTokenRepo.Save(newToken); err != nil {
 		return nil, err
 	}
 
 	return &AuthTokens{
 		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+		RefreshToken: newRefreshToken,
 	}, nil
 }
 
