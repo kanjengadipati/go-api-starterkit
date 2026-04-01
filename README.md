@@ -1,29 +1,30 @@
 # Go Auth App
 
-A modern modular authentication API in Go and Gin.  
-Supports secure registration, login, JWT authentication, refresh, logout, and simple RBAC (“admin”/“user”).  
-Built for extensibility, testability, and fast project setup.
+A robust, modular authentication API built with Go and Gin.  
+Features secure user registration, login, JWT authentication, refresh logic, logout, simple role-based access control (RBAC), and now **email verification** for account activation.  
+Designed for easy customization, strong testing, and rapid startup.
 
 ## 🚀 Features
 
 - User registration and login endpoints
+- Email verification: users receive a verification link after registering
 - Secure password hashing with bcrypt
-- JWT-based authentication & token rotation (access/refresh tokens)
-- Auto rotation & invalidation of used/expired refresh tokens
-- Logout: deletes the refresh token (secure server-side, not just JWT expiry!)
-- Middleware-protected routes (e.g., `/profile`, `/users`)
-- Simple role-based guards (admin/user)
-- Clean-layer architecture: repository, model, controller, service
-- Extensively unit tested (controllers/services/repositories) in `/tests`
-- Mocks for repo/business logic for reliable isolated testing
-- `.env` support for easy configuration
+- JWT-based authentication with support for access and refresh tokens
+- Auto-rotation & invalidation of used/expired refresh tokens
+- Server-side logout: deletes/invalidate refresh tokens (not just JWT expiry)
+- Middleware-protected endpoints (e.g., `/profile`, `/users`)
+- Simple, extensible role-based guards (admin/user)
+- Clean architecture: repositories, models, controllers, services
+- Extensive unit tests in `/tests` (controllers, services, repositories)
+- Mocks for business logic/testing
+- `.env` support for configuration
 
 ## 🏁 Quickstart
 
 ### Prerequisites
 
-- Go 1.18+ ([Download Go](https://golang.org/dl/))
-- Docker (optional, for Postgres/local db)
+- Go 1.18 or newer ([get Go](https://golang.org/dl/))
+- Docker (optional, for Postgres database)
 
 ### Installation
 
@@ -31,26 +32,28 @@ Built for extensibility, testability, and fast project setup.
 git clone https://github.com/your-username/go-auth-app.git
 cd go-auth-app
 go mod tidy
-cp .env.example .env  # Edit .env for DB/JWT config as needed
+cp .env.example .env    # Copy and edit .env for your DB/email/JWT config
 ```
 
 ### Configuration
 
-- Edit `.env` as needed. Key variables:
-  - `DATABASE_URL` (your Postgres data source name)
-  - `JWT_SECRET`
-  - `PORT` (default: 8080)
+Configure your `.env` file:
+- `DATABASE_URL` — Postgres connection string
+- `JWT_SECRET` — your secret for JWT signing
+- `PORT` — API server port (default: 8080)
+- `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM` — for verification emails
 
-### Run the API
+### Running the Server
 
 ```sh
 go run main.go
 ```
-Server starts at: [http://localhost:8080](http://localhost:8080)
 
-## 📚 API Endpoints
+API available at: [http://localhost:8080](http://localhost:8080)
 
-- `POST /register` — Register user  
+## 📚 API Endpoints Overview
+
+- `POST /register` — Register a new user  
   **Body:**
   ```json
   {
@@ -59,8 +62,12 @@ Server starts at: [http://localhost:8080](http://localhost:8080)
     "password": "supersecure"
   }
   ```
+  - On success: User receives a verification email.
 
-- `POST /login` — Obtain access + refresh tokens  
+- `GET /verify-email?token=...` — Verify user’s email  
+  - User clicks the link sent via email to activate the account.
+
+- `POST /login` — Authenticate and get tokens (only for verified users)  
   **Body:**
   ```json
   {
@@ -76,63 +83,60 @@ Server starts at: [http://localhost:8080](http://localhost:8080)
   }
   ```
 
-- `POST /refresh-token` — Refresh tokens  
+- `POST /refresh-token` — Get new tokens using a valid refresh token  
   **Body:**
   ```json
   {
     "refresh_token": "existing_refresh_token"
   }
   ```
-  - On success: new `access_token` & `refresh_token` returned.
-  - Old refresh token is invalidated (“rotation” for security).
+  - Returns new `access_token` and `refresh_token`.
+  - Invalidates the previous refresh token for security (rotation).
 
-- `POST /logout` — Logout & invalidate the provided refresh token  
-  - Requires:  
-    - `Authorization: Bearer <access_token>` header  
-    - Body:
+- `POST /logout` — Log out and invalidate a refresh token  
+  - **Requires:**  
+    - `Authorization: Bearer <access_token>`
+    - **Body:**
     ```json
     {
       "refresh_token": "the_token_to_invalidate"
     }
     ```
-  - Logs user out of device/session.
 
-- `GET /profile` — Fetch current user’s profile  
-  - Requires: `Authorization: Bearer <access_token>`
+- `GET /profile` — Get current user’s profile  
+  - **Requires:** valid `Authorization: Bearer <access_token>`
 
-- `GET /users` — (admin only)  
-  - List all users.  
-  - Requires: Authorization header from a user with `role: admin`.
+- `GET /users` — List all users *(admin only)*  
+  - **Requires:** admin's authorization header
 
 ## 🧪 Running Tests
 
-Run all tests:
 ```sh
 go test ./tests/...
 ```
-- Unit and isolation tests are provided for mock repositories & controllers.
-- Test covers: registration, login, failed/invalid login, refresh logic, protected endpoints, and admin guards.
+- Dedicated unit and isolation tests for controllers, services, repositories using mocks.
+- Tests cover registration, login, failed login, token lifecycles, role guards, email verification logic, and more.
 
 ## 📂 Project Structure
 
 ```
 .
-├── controllers/         # Handler/controller logic per endpoint
-├── dto/                 # Request/response DTO structs
+├── controllers/         # HTTP handlers for API endpoints
+├── dto/                 # Request/response data (DTOs)
 ├── models/              # GORM models (User, RefreshToken, etc.)
-├── repositories/        # Interface & storage logic (db repo, etc.)
-├── services/            # Business logic (authentication, user, etc.)
-├── middleware/          # JWT & role middleware
-├── config/              # DB/JWT/env boot & settings
-├── tests/               # Unit tests & mocking
-└── main.go              # Entrypoint / main app bootstrap
+├── repositories/        # Interface & DB logic
+├── services/            # Business logic (authentication, user, email, etc.)
+├── middleware/          # JWT & RBAC middleware
+├── config/              # Env, DB, JWT, and email settings
+├── tests/               # Unit & mock tests
+└── main.go              # Application entry
 ```
 
 ## 🤝 Contributing
 
-1. Fork this repository
-2. Create a branch (`git checkout -b feat/my-feature`)
-3. Commit & push your changes
+1. Fork this repo
+2. Create a feature branch (`git checkout -b feat/your-feature`)
+3. Commit and push your changes
 4. Open a Pull Request!
 
 ## 📄 License

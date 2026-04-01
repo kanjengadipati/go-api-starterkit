@@ -14,7 +14,8 @@ import (
 )
 
 func TestAdminForbidden(t *testing.T) {
-	mockRepo := new(mocks.MockUserRepo)
+	mockRepo := &mocks.UserRepository{}
+
 	userService := &services.UserService{
 		UserRepo: mockRepo,
 	}
@@ -24,9 +25,14 @@ func TestAdminForbidden(t *testing.T) {
 	}
 
 	gin.SetMode(gin.TestMode)
-	r := gin.Default()
+	r := gin.New()
 
-	// Apply the AdminOnly middleware manually before the handler
+	// Middleware to simulate a logged-in user *before* admin middleware
+	r.Use(func(c *gin.Context) {
+		c.Set("role", "user")
+		c.Next()
+	})
+
 	r.GET("/admin/users", middleware.AdminOnly(), func(c *gin.Context) {
 		controller.GetAllUsers(c)
 	})
@@ -34,15 +40,7 @@ func TestAdminForbidden(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/admin/users", nil)
 	req.Header.Set("Content-Type", "application/json")
 
-	// Simulate a user with the "user" role in the context
-	// Since middleware.AdminOnly gets the role from the context,
-	// simulate it using a wrapper - or set in a fake middleware
-	r.Use(func(c *gin.Context) {
-		c.Set("role", "user")
-	})
-
 	w := httptest.NewRecorder()
-
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, 403, w.Code)

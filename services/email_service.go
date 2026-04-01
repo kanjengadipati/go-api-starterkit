@@ -8,19 +8,28 @@ import (
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
-type EmailService struct {
+// EmailService defines methods for sending emails (interface)
+type EmailService interface {
+	SendVerificationEmail(toEmail, token string) error
+}
+
+// emailService implements EmailService interface
+type emailService struct {
 	apiKey string
 	from   string
 }
 
-func NewEmailService() *EmailService {
-	return &EmailService{
+var _ EmailService = (*emailService)(nil)
+
+// NewEmailService returns a new emailService as EmailService
+func NewEmailService() EmailService {
+	return &emailService{
 		apiKey: os.Getenv("SENDGRID_API_KEY"),
-		from:   os.Getenv("SENDGRID_EMAIL"), // wajib verified di SendGrid
+		from:   os.Getenv("SENDGRID_EMAIL"),
 	}
 }
 
-func (s *EmailService) SendVerificationEmail(toEmail, token string) error {
+func (s *emailService) SendVerificationEmail(toEmail, token string) error {
 	link := fmt.Sprintf("http://localhost:8080/verify?token=%s", token)
 
 	from := mail.NewEmail("Go App", s.from)

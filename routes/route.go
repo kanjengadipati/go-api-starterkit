@@ -17,13 +17,13 @@ func SetupRoutes(router *gin.Engine) {
 	jwtService := services.NewJWTService(config.JWTSecret)
 	emailSvc := services.NewEmailService()
 
-	authService := &services.AuthService{
-		UserRepo:              userRepo,
-		JWT:                   jwtService,
-		RefreshTokenRepo:      refreshTokenRepo,
-		EmailVerificationRepo: emailVerificationRepo,
-		EmailSvc:              emailSvc,
-	}
+	authService := services.NewAuthService(
+		userRepo,
+		refreshTokenRepo,
+		emailVerificationRepo,
+		jwtService,
+		emailSvc,
+	)
 
 	userService := &services.UserService{
 		UserRepo: userRepo,
@@ -45,6 +45,8 @@ func SetupRoutes(router *gin.Engine) {
 	api.POST("/register", authController.Register)
 	api.POST("/login", authController.Login)
 	api.POST("/refresh", authController.RefreshToken)
+	api.GET("/verify", authController.VerifyEmail)
+	api.GET("/resend-verification", authController.ResendVerification)
 
 	// ========================
 	// 🔐 PROTECTED ROUTES

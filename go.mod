@@ -12,7 +12,10 @@ require (
 	gorm.io/gorm v1.25.10
 )
 
-require github.com/sendgrid/rest v2.6.9+incompatible // indirect
+require (
+	github.com/sendgrid/rest v2.6.9+incompatible // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
+)
 
 require (
 	github.com/bytedance/gopkg v0.1.3 // indirect

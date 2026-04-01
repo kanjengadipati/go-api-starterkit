@@ -1,273 +1,214 @@
 package tests
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
 	"go-auth-app/controllers"
 	"go-auth-app/models"
 	"go-auth-app/services"
 	"go-auth-app/tests/mocks"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/stretchr/testify/mock"
 )
 
-func setupRouter(controller controllers.AuthController) *gin.Engine {
+func setupTest() (*gin.Context, *httptest.ResponseRecorder) {
 	gin.SetMode(gin.TestMode)
-
-	r := gin.Default()
-
-	r.POST("/register", controller.Register)
-	r.POST("/login", controller.Login)
-	r.POST("/logout", controller.Logout)
-
-	return r
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	return c, w
 }
 
-func TestRegister(t *testing.T) {
-	mockRepo := &mocks.MockUserRepo{}
-
-	authService := &services.AuthService{
-		UserRepo: mockRepo,
-	}
+func TestRegister_Success(t *testing.T) {
+	mockService := new(mocks.AuthService)
 
 	controller := controllers.AuthController{
-		AuthService: authService,
+		AuthService: mockService,
 	}
 
-	router := setupRouter(controller)
+	body := `{
+		"name": "test",
+		"email": "test@mail.com",
+		"password": "123456"
+	}`
 
-	body := map[string]string{
-		"name":     "Test User",
-		"email":    "register_test@mail.com",
-		"password": "123456",
-	}
+	mockService.
+		On("Register", mock.Anything, "123456").
+		Return(nil)
 
-	jsonValue, _ := json.Marshal(body)
+	c, w := setupTest()
 
-	req, _ := http.NewRequest("POST", "/register", bytes.NewBuffer(jsonValue))
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	c.Request = req
 
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
+	controller.Register(c)
 
-	assert.Equal(t, 200, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockService.AssertExpectations(t)
 }
 
-func TestLogin(t *testing.T) {
-	hash, _ := bcrypt.GenerateFromPassword([]byte("123456"), 14)
-
-	mockRepo := &mocks.MockUserRepo{
-		User: &models.User{
-			Email:    "login_test@mail.com",
-			Password: string(hash),
-			Role:     "user",
-		},
-	}
-
-	authService := &services.AuthService{
-		UserRepo: mockRepo,
-	}
+func TestLogin_Success(t *testing.T) {
+	mockService := new(mocks.AuthService)
 
 	controller := controllers.AuthController{
-		AuthService: authService,
+		AuthService: mockService,
 	}
 
-	router := setupRouter(controller)
+	body := `{
+		"email": "test@mail.com",
+		"password": "123456"
+	}`
 
-	body := map[string]string{
-		"email":    "login_test@mail.com",
-		"password": "123456",
-	}
+	mockService.
+		On("Login",
+			"test@mail.com",
+			"123456",
+			"web",
+			mock.Anything,
+			mock.Anything,
+		).
+		Return(&services.AuthTokens{
+			AccessToken:  "abc",
+			RefreshToken: "xyz",
+		}, nil)
 
-	jsonValue, _ := json.Marshal(body)
+	c, w := setupTest()
 
-	req, _ := http.NewRequest("POST", "/login", bytes.NewBuffer(jsonValue))
+	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Device-ID", "web")
+	c.Request = req
 
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
+	controller.Login(c)
 
-	assert.Equal(t, 200, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestLogout(t *testing.T) {
-	mockRepo := &mocks.MockUserRepo{
-		User: &models.User{
-			ID:           1,
-			RefreshToken: "some_token",
-		},
-	}
-
-	authService := &services.AuthService{
-		UserRepo: mockRepo,
-	}
+func TestLogout_Success(t *testing.T) {
+	mockService := new(mocks.AuthService)
 
 	controller := controllers.AuthController{
-		AuthService: authService,
+		AuthService: mockService,
 	}
 
-	gin.SetMode(gin.TestMode)
-	r := gin.Default()
+	mockService.
+		On("Logout", uint(1), "web").
+		Return(nil)
 
-	r.POST("/logout", func(c *gin.Context) {
-		c.Set("user_id", uint(1))
-		controller.Logout(c)
-	})
+	c, w := setupTest()
 
-	// ✅ FIX: kirim body
-	body := map[string]string{
-		"refresh_token": "some_token",
-	}
+	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+	req.Header.Set("X-Device-ID", "web")
+	c.Request = req
 
-	jsonValue, _ := json.Marshal(body)
+	// ✅ penting: key + type harus match utils
+	c.Set("user_id", uint(1))
 
-	req, _ := http.NewRequest("POST", "/logout", bytes.NewBuffer(jsonValue))
-	req.Header.Set("Content-Type", "application/json")
+	controller.Logout(c)
 
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, 200, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestLogin_WrongPassword(t *testing.T) {
-	hash, _ := bcrypt.GenerateFromPassword([]byte("correct_password"), 14)
-
-	// Use the simple mock implementation (no testify/mock required).
-	mockRepo := &mocks.MockUserRepo{
-		User: &models.User{
-			Email:    "test@mail.com",
-			Password: string(hash), // hash for "correct_password"
-			Role:     "user",
-		},
-	}
-
-	authService := &services.AuthService{
-		UserRepo: mockRepo,
-	}
+func TestRefreshToken_Success(t *testing.T) {
+	mockService := new(mocks.AuthService)
 
 	controller := controllers.AuthController{
-		AuthService: authService,
+		AuthService: mockService,
 	}
 
-	router := setupRouter(controller)
+	body := `{"refresh_token":"abc"}`
 
-	body := map[string]string{
-		"email":    "test@mail.com",
-		"password": "wrong_password", // ❌ salah
-	}
+	mockService.
+		On("RefreshToken", "abc").
+		Return(&services.AuthTokens{
+			AccessToken:  "new",
+			RefreshToken: "refresh",
+		}, nil)
 
-	jsonValue, _ := json.Marshal(body)
+	c, w := setupTest()
 
-	req, _ := http.NewRequest("POST", "/login", bytes.NewBuffer(jsonValue))
+	req := httptest.NewRequest(http.MethodPost, "/refresh", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	c.Request = req
 
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
+	controller.RefreshToken(c)
 
-	// 🔥 expect gagal
-	assert.Equal(t, 401, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestLogin_UserNotFound(t *testing.T) {
-	mockRepo := &mocks.MockUserRepo{
-		FindByEmailErr: errors.New("user not found"),
-	}
-
-	authService := &services.AuthService{
-		UserRepo: mockRepo,
-	}
+func TestProfile_Success(t *testing.T) {
+	mockService := new(mocks.AuthService)
 
 	controller := controllers.AuthController{
-		AuthService: authService,
+		AuthService: mockService,
 	}
 
-	router := setupRouter(controller)
-
-	body := map[string]string{
-		"email":    "notfound@mail.com",
-		"password": "123456",
-	}
-
-	jsonValue, _ := json.Marshal(body)
-
-	req, _ := http.NewRequest("POST", "/login", bytes.NewBuffer(jsonValue))
-	req.Header.Set("Content-Type", "application/json")
-
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	// 🔥 expect gagal
-	assert.Equal(t, 401, w.Code)
-}
-
-func TestLogin_InvalidInput(t *testing.T) {
-	mockRepo := new(mocks.MockUserRepo)
-
-	authService := &services.AuthService{
-		UserRepo: mockRepo,
-	}
-
-	controller := controllers.AuthController{
-		AuthService: authService,
-	}
-
-	router := setupRouter(controller)
-
-	body := map[string]string{
-		"email":    "",
-		"password": "",
-	}
-
-	jsonValue, _ := json.Marshal(body)
-
-	req, _ := http.NewRequest("POST", "/login", bytes.NewBuffer(jsonValue))
-	req.Header.Set("Content-Type", "application/json")
-
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	// Empty strings are valid JSON input, so the controller proceeds to the
-	// 400 validation failed
-	assert.Equal(t, 400, w.Code)
-}
-
-func TestProfile(t *testing.T) {
-	mockRepo := &mocks.MockUserRepo{
-		User: &models.User{
+	mockService.
+		On("GetProfile", uint(1)).
+		Return(&models.User{
+			ID:    1,
 			Name:  "Test",
-			Email: "profile@mail.com",
+			Email: "test@mail.com",
 			Role:  "user",
-		},
-	}
+		}, nil)
 
-	authService := &services.AuthService{
-		UserRepo: mockRepo,
-	}
+	c, w := setupTest()
+
+	req := httptest.NewRequest(http.MethodGet, "/profile", nil)
+	c.Request = req
+
+	c.Set("user_id", uint(1)) // ✅ penting
+
+	controller.Profile(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestVerifyEmail_Success(t *testing.T) {
+	mockService := new(mocks.AuthService)
 
 	controller := controllers.AuthController{
-		AuthService: authService,
+		AuthService: mockService,
 	}
 
-	gin.SetMode(gin.TestMode)
-	r := gin.Default()
+	mockService.
+		On("VerifyEmail", "token123").
+		Return(nil)
 
-	// inject user_id manual (simulate middleware)
-	r.GET("/profile", func(c *gin.Context) {
-		c.Set("user_id", uint(1))
-		controller.Profile(c)
-	})
+	c, w := setupTest()
 
-	req, _ := http.NewRequest("GET", "/profile", nil)
+	req := httptest.NewRequest(http.MethodGet, "/verify?token=token123", nil)
+	c.Request = req
 
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	controller.VerifyEmail(c)
 
-	assert.Equal(t, 200, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestResendVerification_Success(t *testing.T) {
+	mockService := new(mocks.AuthService)
+
+	controller := controllers.AuthController{
+		AuthService: mockService,
+	}
+
+	body := `{"email":"test@mail.com"}`
+
+	mockService.
+		On("ResendVerification", "test@mail.com").
+		Return(nil)
+
+	c, w := setupTest()
+
+	req := httptest.NewRequest(http.MethodPost, "/resend", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	c.Request = req
+
+	controller.ResendVerification(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
 }

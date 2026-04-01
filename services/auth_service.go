@@ -13,13 +13,25 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type AuthService struct {
+type AuthService interface {
+	Register(user *models.User, password string) error
+	Login(email, password, deviceID, userAgent, ipAddress string) (*AuthTokens, error)
+	Logout(userID uint, deviceID string) error
+	RefreshToken(oldRefreshToken string) (*AuthTokens, error)
+	GetProfile(userID uint) (*models.User, error)
+	ResendVerification(email string) error
+	VerifyEmail(token string) error
+}
+
+type authService struct {
 	UserRepo              repositories.UserRepository
 	RefreshTokenRepo      repositories.RefreshTokenRepository
 	EmailVerificationRepo repositories.EmailVerificationTokenRepository
 	JWT                   *JWTService
-	EmailSvc              *EmailService
+	EmailSvc              EmailService
 }
+
+var _ AuthService = (*authService)(nil)
 
 type AuthTokens struct {
 	AccessToken  string `json:"access_token"`
@@ -31,7 +43,23 @@ const (
 	TokenRefresh = "refresh"
 )
 
-func (s *AuthService) Register(user *models.User, password string) error {
+func NewAuthService(
+	userRepo repositories.UserRepository,
+	refreshRepo repositories.RefreshTokenRepository,
+	emailRepo repositories.EmailVerificationTokenRepository,
+	jwt *JWTService,
+	emailSvc EmailService,
+) AuthService {
+	return &authService{
+		UserRepo:              userRepo,
+		RefreshTokenRepo:      refreshRepo,
+		EmailVerificationRepo: emailRepo,
+		JWT:                   jwt,
+		EmailSvc:              emailSvc,
+	}
+}
+
+func (s *authService) Register(user *models.User, password string) error {
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
@@ -62,18 +90,16 @@ func (s *AuthService) Register(user *models.User, password string) error {
 		log.Printf("failed to save email verification token for %s: %v", user.Email, err)
 	}
 
-	// Attempt to send verification email, if fail delete existing user
-	err = s.EmailSvc.SendVerificationEmail(user.Email, verificationToken)
-	if err != nil {
-		log.Printf("failed to send verification email to %s: %v, deleting user...", user.Email, err)
-		_ = s.UserRepo.Delete(user.ID)
-		return err
+	// Send verification email; log error if sending fails but do not delete user
+	if sendErr := s.EmailSvc.SendVerificationEmail(user.Email, verificationToken); sendErr != nil {
+		log.Printf("Failed to send verification email to %s: %v", user.Email, sendErr)
+		return sendErr
 	}
 
 	return nil
 }
 
-func (s *AuthService) Login(email, password, deviceID, userAgent, ipAddress string) (*AuthTokens, error) {
+func (s *authService) Login(email, password, deviceID, userAgent, ipAddress string) (*AuthTokens, error) {
 	user, err := s.UserRepo.FindByEmail(email)
 	if err != nil {
 		return nil, errors.New("invalid credentials")
@@ -81,6 +107,10 @@ func (s *AuthService) Login(email, password, deviceID, userAgent, ipAddress stri
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		return nil, errors.New("invalid credentials")
+	}
+
+	if !user.IsVerified {
+		return nil, errors.New("please verify your email first")
 	}
 
 	accessToken, err := s.JWT.GenerateToken(user.ID, user.Role, 15*time.Minute, TokenAccess)
@@ -114,7 +144,7 @@ func (s *AuthService) Login(email, password, deviceID, userAgent, ipAddress stri
 	}, nil
 }
 
-func (s *AuthService) Logout(userID uint, deviceID string) error {
+func (s *authService) Logout(userID uint, deviceID string) error {
 
 	token, err := s.RefreshTokenRepo.FindByUserAndDevice(userID, deviceID)
 	if err != nil {
@@ -124,11 +154,11 @@ func (s *AuthService) Logout(userID uint, deviceID string) error {
 	return s.RefreshTokenRepo.DeleteByID(token.ID)
 }
 
-func (s *AuthService) LogoutAll(userID uint) error {
+func (s *authService) LogoutAll(userID uint) error {
 	return s.RefreshTokenRepo.DeleteByUser(userID)
 }
 
-func (s *AuthService) RefreshToken(oldRefreshToken string) (*AuthTokens, error) {
+func (s *authService) RefreshToken(oldRefreshToken string) (*AuthTokens, error) {
 	claims, err := s.JWT.ValidateToken(oldRefreshToken)
 	if err != nil {
 		return nil, errors.New("invalid refresh token")
@@ -207,16 +237,57 @@ func (s *AuthService) RefreshToken(oldRefreshToken string) (*AuthTokens, error) 
 	}, nil
 }
 
-func (s *AuthService) GetProfile(userID uint) (*models.User, error) {
-	user, err := s.UserRepo.FindByID(userID)
+func (s *authService) GetProfile(userID uint) (*models.User, error) {
+	return s.UserRepo.FindByID(userID)
+}
+
+func (s *authService) ResendVerification(email string) error {
+	user, err := s.UserRepo.FindByEmail(email)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// contoh future logic
-	// - audit log
-	// - enrich data
-	// - cache
+	if user.IsVerified {
+		return errors.New("already verified")
+	}
 
-	return user, nil
+	token := uuid.NewString()
+
+	_ = s.EmailVerificationRepo.DeleteByUserID(user.ID)
+
+	verification := &models.EmailVerificationToken{
+		UserID:    user.ID,
+		Token:     token,
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+	}
+
+	_ = s.EmailVerificationRepo.Create(verification)
+
+	return s.EmailSvc.SendVerificationEmail(user.Email, token)
+}
+
+func (s *authService) VerifyEmail(token string) error {
+	verification, err := s.EmailVerificationRepo.FindByToken(token)
+	if err != nil {
+		return errors.New("invalid token")
+	}
+
+	if time.Now().After(verification.ExpiresAt) {
+		return errors.New("token expired")
+	}
+
+	user, err := s.UserRepo.FindByID(verification.UserID)
+	if err != nil {
+		return err
+	}
+
+	user.IsVerified = true
+	if err := s.UserRepo.Update(user); err != nil {
+		return err
+	}
+
+	// delete token
+	_ = s.EmailVerificationRepo.DeleteByID(verification.ID)
+
+	return nil
 }

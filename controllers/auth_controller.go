@@ -11,7 +11,7 @@ import (
 )
 
 type AuthController struct {
-	AuthService *services.AuthService
+	AuthService services.AuthService
 }
 
 func (a *AuthController) Register(c *gin.Context) {
@@ -114,4 +114,41 @@ func (a *AuthController) Profile(c *gin.Context) {
 		"email": user.Email,
 		"role":  user.Role,
 	})
+}
+
+func (h *AuthController) VerifyEmail(c *gin.Context) {
+	token := c.Query("token")
+
+	if token == "" {
+		c.JSON(400, gin.H{"error": "token required"})
+		return
+	}
+
+	err := h.AuthService.VerifyEmail(token)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "email verified"})
+}
+
+func (a *AuthController) ResendVerification(c *gin.Context) {
+	type ResendInput struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+
+	var input ResendInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email"})
+		return
+	}
+
+	err := a.AuthService.ResendVerification(input.Email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Verification email resent"})
 }
