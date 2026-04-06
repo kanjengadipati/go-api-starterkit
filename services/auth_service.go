@@ -365,7 +365,7 @@ func (s *authService) generateResetToken(userID uint, email string) (string, err
 }
 
 func (s *authService) SocialLogin(provider string, idToken string, deviceID, userAgent, ipAddress string) (*AuthTokens, error) {
-	var email, providerID, name, avatar string
+	var email, providerUserID, name, avatar string
 
 	// =========================
 	// 1. VERIFY PROVIDER TOKEN
@@ -379,7 +379,7 @@ func (s *authService) SocialLogin(provider string, idToken string, deviceID, use
 
 		email, _ = payload.Claims["email"].(string)
 		name, _ = payload.Claims["name"].(string)
-		providerID = payload.Subject
+		providerUserID = payload.Subject
 		avatar, _ = payload.Claims["picture"].(string)
 
 		emailVerified, ok := payload.Claims["email_verified"].(bool)
@@ -394,9 +394,9 @@ func (s *authService) SocialLogin(provider string, idToken string, deviceID, use
 	// 🔥 debug (optional)
 	log.Println("EMAIL:", email)
 	log.Println("PROVIDER:", provider)
-	log.Println("PROVIDER_ID:", providerID)
+	log.Println("PROVIDER_ID:", providerUserID)
 
-	if providerID == "" {
+	if providerUserID == "" {
 		return nil, errors.New("invalid provider id")
 	}
 
@@ -421,7 +421,7 @@ func (s *authService) SocialLogin(provider string, idToken string, deviceID, use
 	// =========================
 	// 3. HANDLE SOCIAL ACCOUNT
 	// =========================
-	social, err := s.SocialRepo.FindByProvider(provider, providerID)
+	social, err := s.SocialRepo.FindByProvider(provider, providerUserID)
 	if err != nil {
 		return nil, err
 	}
@@ -434,10 +434,10 @@ func (s *authService) SocialLogin(provider string, idToken string, deviceID, use
 	} else {
 		// 🔥 BELUM ADA → CREATE
 		newSocial := &models.SocialAccount{
-			UserID:     user.ID,
-			Provider:   provider,
-			ProviderID: providerID,
-			AvatarURL:  avatar,
+			UserID:         user.ID,
+			Provider:       provider,
+			ProviderUserID: providerUserID,
+			AvatarURL:      avatar,
 		}
 		log.Println("CREATING SOCIAL ACCOUNT...")
 		if err := s.SocialRepo.Create(newSocial); err != nil {
