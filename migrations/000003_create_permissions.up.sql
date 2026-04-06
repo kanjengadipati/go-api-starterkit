@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS permissions (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);

@@ -2,34 +2,30 @@ package main
 
 import (
 	"go-auth-app/config"
-	"go-auth-app/models"
 	"go-auth-app/routes"
 
 	"github.com/gin-gonic/gin"
 )
 
-func main() {
+func initApp() *gin.Engine {
+	// Load environment variables and initialize JWT
 	config.LoadEnv()
 	config.InitJWT()
 
-	// Connect DB
+	// Connect to the database
 	config.ConnectDB()
 
-	config.DB.AutoMigrate(&models.RefreshToken{})
-
-	config.DB.AutoMigrate(&models.EmailVerificationToken{})
-
-	config.DB.AutoMigrate(&models.SocialAccount{})
-
-	// Seed admin
-	config.SeedAdmin()
-
-	// Init router
+	// Initialize Gin router and set up routes
 	router := gin.Default()
-
-	// Setup routes
 	routes.SetupRoutes(router)
 
-	// Run server
-	router.Run(":8080")
+	return router
+}
+
+func main() {
+	router := initApp()
+	// Start the server
+	if err := router.Run(":8080"); err != nil {
+		panic("failed to start server: " + err.Error())
+	}
 }

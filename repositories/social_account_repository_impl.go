@@ -24,12 +24,12 @@ func (r *SocialAccountRepositoryImpl) Create(socialAccount *models.SocialAccount
 	return config.DB.Create(socialAccount).Error
 }
 
-func (r *SocialAccountRepositoryImpl) FindByProvider(provider, providerID string) (*models.SocialAccount, error) {
-	if provider == "" || providerID == "" {
-		return nil, errors.New("provider and providerID cannot be empty")
+func (r *SocialAccountRepositoryImpl) FindByProvider(provider, providerUserID string) (*models.SocialAccount, error) {
+	if provider == "" || providerUserID == "" {
+		return nil, errors.New("provider and providerUserID cannot be empty")
 	}
 	var account models.SocialAccount
-	err := config.DB.Where("provider = ? AND provider_id = ?", provider, providerID).First(&account).Error
+	err := config.DB.Where("provider = ? AND provider_user_id = ?", provider, providerUserID).First(&account).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	} else if err != nil {
