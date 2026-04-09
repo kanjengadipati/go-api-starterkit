@@ -1,12 +1,10 @@
-version: "3.9"
-
 services:
   app:
     build: .
     container_name: go-auth-app
     restart: always
     env_file:
-      - .env
+      - .env.docker
     depends_on:
       db:
         condition: service_healthy
@@ -14,39 +12,41 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   db:
     image: postgres:15-alpine
     container_name: postgres-db
     restart: always
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+    env_file:
+      - .env.docker
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   db-setup:
-    image: golang:1.25-alpine
+    build:
+      context: .
+      dockerfile: docker/db-setup.Dockerfile
     container_name: db-setup
     working_dir: /app
+    env_file:
+      - .env.docker
     volumes:
       - .:/app
     depends_on:
       db:
         condition: service_healthy
-    entrypoint: >
-      sh -c "
-      apk add --no-cache make curl &&
-      curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xvz &&
-      mv migrate /usr/local/bin/migrate &&
-      make db-setup
-      "
+    environment:
+      ENV_FILE: .env.docker
 
   redis:
     image: redis:7-alpine
@@ -62,7 +62,8 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
 volumes:
   db_data:

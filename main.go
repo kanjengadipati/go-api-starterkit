@@ -33,6 +33,9 @@ func initApp() *gin.Engine {
 	// ===== ROUTES =====
 	auth.SetupRoutes(api, authHandler)
 	user.SetupRoutes(api, userHandler)
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 
 	return router
 }

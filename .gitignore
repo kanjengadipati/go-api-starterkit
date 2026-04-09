@@ -11,6 +11,7 @@
 
 # Env files
 .env
+.env.docker
 
 # IDEs and editors
 .vscode/

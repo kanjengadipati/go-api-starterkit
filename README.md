@@ -1,196 +1,205 @@
-[![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/golang-migrate/migrate/ci.yaml?branch=master)](https://github.com/golang-migrate/migrate/actions/workflows/ci.yaml?query=branch%3Amaster)
-[![GoDoc](https://pkg.go.dev/badge/github.com/golang-migrate/migrate)](https://pkg.go.dev/github.com/golang-migrate/migrate/v4)
-[![Coverage Status](https://img.shields.io/coveralls/github/golang-migrate/migrate/master.svg)](https://coveralls.io/github/golang-migrate/migrate?branch=master)
-[![packagecloud.io](https://img.shields.io/badge/deb-packagecloud.io-844fec.svg)](https://packagecloud.io/golang-migrate/migrate?filter=debs)
-[![Docker Pulls](https://img.shields.io/docker/pulls/migrate/migrate.svg)](https://hub.docker.com/r/migrate/migrate/)
-![Supported Go Versions](https://img.shields.io/badge/Go-1.20%2C%201.21-lightgrey.svg)
-[![GitHub Release](https://img.shields.io/github/release/golang-migrate/migrate.svg)](https://github.com/golang-migrate/migrate/releases)
-[![Go Report Card](https://goreportcard.com/badge/github.com/golang-migrate/migrate/v4)](https://goreportcard.com/report/github.com/golang-migrate/migrate/v4)
+# Go Auth App
 
-# migrate
+Authentication API built with Go, Gin, GORM, PostgreSQL, and JWT.
 
-__Database migrations written in Go. Use as [CLI](#cli-usage) or import as [library](#use-in-your-go-project).__
+This project now uses a modular structure under [`modules/`](/Users/meilanasapta/Code/go-auth-app/modules), with the main modules:
+- `auth`
+- `user`
+- `role`
+- `permission`
+- `token`
+- `social`
 
-* Migrate reads migrations from [sources](#migration-sources)
-   and applies them in correct order to a [database](#databases).
-* Drivers are "dumb", migrate glues everything together and makes sure the logic is bulletproof.
-   (Keeps the drivers lightweight, too.)
-* Database drivers don't assume things or try to correct user input. When in doubt, fail.
+## Features
 
-Forked from [mattes/migrate](https://github.com/mattes/migrate)
+- user registration
+- login with access token and refresh token
+- logout
+- profile endpoint
+- email verification
+- resend verification email
+- forgot password and reset password
+- social login
+- admin user listing and deletion
+- database migration and seeding
+- Docker-based local development
 
-## Databases
+## Tech Stack
 
-Database drivers run migrations. [Add a new database?](database/driver.go)
+- Go
+- Gin
+- GORM
+- PostgreSQL
+- JWT
+- SendGrid
+- golang-migrate
 
-* [PostgreSQL](database/postgres)
-* [PGX v4](database/pgx)
-* [PGX v5](database/pgx/v5)
-* [Redshift](database/redshift)
-* [Ql](database/ql)
-* [Cassandra / ScyllaDB](database/cassandra)
-* [SQLite](database/sqlite)
-* [SQLite3](database/sqlite3) ([todo #165](https://github.com/mattes/migrate/issues/165))
-* [SQLCipher](database/sqlcipher)
-* [MySQL / MariaDB](database/mysql)
-* [Neo4j](database/neo4j)
-* [MongoDB](database/mongodb)
-* [CrateDB](database/crate) ([todo #170](https://github.com/mattes/migrate/issues/170))
-* [Shell](database/shell) ([todo #171](https://github.com/mattes/migrate/issues/171))
-* [Google Cloud Spanner](database/spanner)
-* [CockroachDB](database/cockroachdb)
-* [YugabyteDB](database/yugabytedb)
-* [ClickHouse](database/clickhouse)
-* [Firebird](database/firebird)
-* [MS SQL Server](database/sqlserver)
-* [RQLite](database/rqlite)
+## Project Structure
 
-### Database URLs
+```text
+.
+├── cmd/
+│   ├── migrate/
+│   └── seed/
+├── config/
+├── migrations/
+├── modules/
+│   ├── auth/
+│   ├── permission/
+│   ├── role/
+│   ├── social/
+│   ├── token/
+│   └── user/
+├── routes/
+├── seeds/
+├── services/
+└── utils/
+```
 
-Database connection strings are specified via URLs. The URL format is driver dependent but generally has the form: `dbdriver://username:password@host:port/dbname?param1=true&param2=false`
+## Environment Variables
 
-Any [reserved URL characters](https://en.wikipedia.org/wiki/Percent-encoding#Percent-encoding_reserved_characters) need to be escaped. Note, the `%` character also [needs to be escaped](https://en.wikipedia.org/wiki/Percent-encoding#Percent-encoding_the_percent_character)
+Copy `.env.example` to `.env`, then fill in the values.
 
-Explicitly, the following characters need to be escaped:
-`!`, `#`, `$`, `%`, `&`, `'`, `(`, `)`, `*`, `+`, `,`, `/`, `:`, `;`, `=`, `?`, `@`, `[`, `]`
+Common variables used by this project:
 
-It's easiest to always run the URL parts of your DB connection URL (e.g. username, password, etc) through an URL encoder. See the example Python snippets below:
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=password
+DB_NAME=auth_db
+DB_SSLMODE=disable
+
+JWT_SECRET=your-secret
+
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=supersecret
+```
+
+If you use the email flow, make sure the SendGrid variables are also configured based on [`services/email_service.go`](/Users/meilanasapta/Code/go-auth-app/services/email_service.go#L1).
+
+## Running the Application
+
+Start the app:
 
 ```bash
-$ python3 -c 'import urllib.parse; print(urllib.parse.quote(input("String to encode: "), ""))'
-String to encode: FAKEpassword!#$%&'()*+,/:;=?@[]
-FAKEpassword%21%23%24%25%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D
-$ python2 -c 'import urllib; print urllib.quote(raw_input("String to encode: "), "")'
-String to encode: FAKEpassword!#$%&'()*+,/:;=?@[]
-FAKEpassword%21%23%24%25%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D
-$
+go run .
 ```
 
-## Migration Sources
+The server runs on:
 
-Source drivers read migrations from local or remote sources. [Add a new source?](source/driver.go)
+```text
+http://localhost:8080
+```
 
-* [Filesystem](source/file) - read from filesystem
-* [io/fs](source/iofs) - read from a Go [io/fs](https://pkg.go.dev/io/fs#FS)
-* [Go-Bindata](source/go_bindata) - read from embedded binary data ([jteeuwen/go-bindata](https://github.com/jteeuwen/go-bindata))
-* [pkger](source/pkger) - read from embedded binary data ([markbates/pkger](https://github.com/markbates/pkger))
-* [GitHub](source/github) - read from remote GitHub repositories
-* [GitHub Enterprise](source/github_ee) - read from remote GitHub Enterprise repositories
-* [Bitbucket](source/bitbucket) - read from remote Bitbucket repositories
-* [Gitlab](source/gitlab) - read from remote Gitlab repositories
-* [AWS S3](source/aws_s3) - read from Amazon Web Services S3
-* [Google Cloud Storage](source/google_cloud_storage) - read from Google Cloud Platform Storage
+## Running with Docker
 
-## CLI usage
+This project is Docker-ready and includes:
+- application container
+- PostgreSQL
+- Redis
+- Nginx gateway
+- automatic database setup container
+- basic Nginx rate limiting for `/health` and general API traffic
 
-* Simple wrapper around this library.
-* Handles ctrl+c (SIGINT) gracefully.
-* No config search paths, no config files, no magic ENV var injections.
-
-__[CLI Documentation](cmd/migrate)__
-
-### Basic usage
+Start the full stack:
 
 ```bash
-$ migrate -source file://path/to/migrations -database postgres://localhost:5432/database up 2
+docker-compose --env-file .env.docker up --build
 ```
 
-### Docker usage
+Or use the Makefile shortcuts:
 
 ```bash
-$ docker run -v {{ migration dir }}:/migrations --network host migrate/migrate
-    -path=/migrations/ -database postgres://localhost:5432/database up 2
+make docker-up
+make docker-down
+make docker-logs
+make docker-rebuild
 ```
 
-## Use in your Go project
+By default, the gateway is exposed on:
 
-* API is stable and frozen for this release (v3 & v4).
-* Uses [Go modules](https://golang.org/cmd/go/#hdr-Modules__module_versions__and_more) to manage dependencies.
-* To help prevent database corruptions, it supports graceful stops via `GracefulStop chan bool`.
-* Bring your own logger.
-* Uses `io.Reader` streams internally for low memory overhead.
-* Thread-safe and no goroutine leaks.
-
-__[Go Documentation](https://pkg.go.dev/github.com/golang-migrate/migrate/v4)__
-
-```go
-import (
-    "github.com/golang-migrate/migrate/v4"
-    _ "github.com/golang-migrate/migrate/v4/database/postgres"
-    _ "github.com/golang-migrate/migrate/v4/source/github"
-)
-
-func main() {
-    m, err := migrate.New(
-        "github://mattes:personal-access-token@mattes/migrate_test",
-        "postgres://localhost:5432/database?sslmode=enable")
-    m.Steps(2)
-}
+```text
+http://localhost
 ```
 
-Want to use an existing database client?
+## Database Migration
 
-```go
-import (
-    "database/sql"
-    _ "github.com/lib/pq"
-    "github.com/golang-migrate/migrate/v4"
-    "github.com/golang-migrate/migrate/v4/database/postgres"
-    _ "github.com/golang-migrate/migrate/v4/source/file"
-)
-
-func main() {
-    db, err := sql.Open("postgres", "postgres://localhost:5432/database?sslmode=enable")
-    driver, err := postgres.WithInstance(db, &postgres.Config{})
-    m, err := migrate.NewWithDatabaseInstance(
-        "file:///migrations",
-        "postgres", driver)
-    m.Up() // or m.Step(2) if you want to explicitly set the number of migrations to run
-}
-```
-
-## Getting started
-
-Go to [getting started](GETTING_STARTED.md)
-
-## Tutorials
-
-* [CockroachDB](database/cockroachdb/TUTORIAL.md)
-* [PostgreSQL](database/postgres/TUTORIAL.md)
-
-(more tutorials to come)
-
-## Migration files
-
-Each migration has an up and down migration. [Why?](FAQ.md#why-two-separate-files-up-and-down-for-a-migration)
+Run migrations with:
 
 ```bash
-1481574547_create_users_table.up.sql
-1481574547_create_users_table.down.sql
+go run ./cmd/migrate
 ```
 
-[Best practices: How to write migrations.](MIGRATIONS.md)
+Migration files are stored in [`migrations/`](/Users/meilanasapta/Code/go-auth-app/migrations).
 
-## Coming from another db migration tool?
+## Database Seeding
 
-Check out [migradaptor](https://github.com/musinit/migradaptor/).
-*Note: migradaptor is not affliated or supported by this project*
+Run the seeder with:
 
-## Versions
+```bash
+go run ./cmd/seed
+```
 
-Version | Supported? | Import | Notes
---------|------------|--------|------
-**master** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | New features and bug fixes arrive here first |
-**v4** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | Used for stable releases |
-**v3** | :x: | `import "github.com/golang-migrate/migrate"` (with package manager) or `import "gopkg.in/golang-migrate/migrate.v3"` (not recommended) | **DO NOT USE** - No longer supported |
+Seeder logic is defined in [`seeds/seed.go`](/Users/meilanasapta/Code/go-auth-app/seeds/seed.go#L1).
 
-## Development and Contributing
+## Database Setup Shortcut
 
-Yes, please! [`Makefile`](Makefile) is your friend,
-read the [development guide](CONTRIBUTING.md).
+To run migration and seed in one step:
 
-Also have a look at the [FAQ](FAQ.md).
+```bash
+make db-setup
+```
 
----
+This target runs:
+- `make migrate-up`
+- `make seed`
 
-Looking for alternatives? [https://awesome-go.com/#database](https://awesome-go.com/#database).
+The Docker setup also uses this shortcut internally through the `db-setup` service in [`docker-compose.yaml`](/Users/meilanasapta/Code/go-auth-app/docker-compose.yaml#L1).
+
+## Running Tests
+
+```bash
+go test ./...
+```
+
+## Main Endpoints
+
+Auth:
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `GET /auth/verify`
+- `GET /auth/resend-verification`
+- `POST /auth/forgot-password`
+- `POST /auth/reset-password`
+- `POST /auth/social-login`
+- `GET /auth/profile`
+- `POST /auth/logout`
+
+Admin:
+- `GET /auth/admin/users`
+- `DELETE /auth/admin/users/:id`
+
+Health:
+- `GET /health`
+
+## Notes
+
+- The main route wiring is assembled in [`main.go`](/Users/meilanasapta/Code/go-auth-app/main.go#L1) and [`routes/route.go`](/Users/meilanasapta/Code/go-auth-app/routes/route.go#L1).
+- JWT helpers live in [`services/jwt_service.go`](/Users/meilanasapta/Code/go-auth-app/services/jwt_service.go#L1).
+- Shared utilities live in [`utils/`](/Users/meilanasapta/Code/go-auth-app/utils).
+
+## Status
+
+The modular migration is active, and the current repository state passes the test suite.
+
+## TODO
+
+- Use Docker secrets, CI secrets, or platform-managed secrets for serious deployments.
+  Examples: GitHub Actions secrets, Railway, Render, Fly.io, or VPS environment injection.
+- Separate development, Docker, and production environment configuration more explicitly.
+- Rotate any real third-party credentials that were ever stored in local env files.
+- Replace placeholder/local secret handling with a proper secret management workflow.
+- Consider splitting `/health` and `/ready` for clearer liveness vs readiness checks.
+- Consider stronger edge protection for production, such as WAF, CDN, or upstream rate limiting.

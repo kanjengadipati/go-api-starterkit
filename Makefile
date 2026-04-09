@@ -1,4 +1,5 @@
-include .env
+ENV_FILE ?= .env
+-include $(ENV_FILE)
 
 DB_HOST ?= $(DB_HOST)
 DB_PORT ?= $(DB_PORT)
@@ -8,7 +9,7 @@ DB_NAME ?= $(DB_NAME)
 
 DB_URL := postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
 
-.PHONY: migrate-up migrate-down migrate-down-all migrate-status migrate-force migrate-create migrate-drop seed db-setup
+.PHONY: migrate-up migrate-down migrate-down-all migrate-status migrate-force migrate-create migrate-drop seed db-setup docker-up docker-down docker-logs docker-rebuild
 
 migrate-up:
 	migrate -path migrations -database "$(DB_URL)" up
@@ -41,3 +42,15 @@ seed:
 	go run cmd/seed/seed.go
 
 db-setup: migrate-up seed
+
+docker-up:
+	docker-compose --env-file .env.docker up --build
+
+docker-down:
+	docker-compose --env-file .env.docker down
+
+docker-logs:
+	docker-compose --env-file .env.docker logs -f
+
+docker-rebuild:
+	docker-compose --env-file .env.docker build --no-cache
