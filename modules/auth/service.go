@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/api/idtoken"
+	"gorm.io/gorm"
 )
 
 type AuthService interface {
@@ -175,9 +176,11 @@ func (s *authService) Login(email, password, deviceID, userAgent, ipAddress stri
 }
 
 func (s *authService) Logout(userID uint, deviceID string) error {
-
 	token, err := s.RefreshTokenRepo.FindByUserAndDevice(userID, deviceID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
 		return err
 	}
 
