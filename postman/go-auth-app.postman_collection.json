@@ -87,8 +87,10 @@
                   "  pm.expect(json.access_token).to.be.a('string').and.not.empty;",
                   "  pm.expect(json.refresh_token).to.be.a('string').and.not.empty;",
                   "});",
-                  "if (json.access_token) pm.collectionVariables.set('access_token', json.access_token);",
-                  "if (json.refresh_token) pm.collectionVariables.set('refresh_token', json.refresh_token);"
+                  "if (json.access_token) pm.environment.set('access_token', json.access_token);",
+                  "if (json.refresh_token) pm.environment.set('refresh_token', json.refresh_token);",
+                  "console.log('access_token set:', !!json.access_token);",
+                  "console.log('refresh_token set:', !!json.refresh_token);"
                 ],
                 "type": "text/javascript"
               }
@@ -149,8 +151,10 @@
                   "  pm.expect(json.access_token).to.be.a('string').and.not.empty;",
                   "  pm.expect(json.refresh_token).to.be.a('string').and.not.empty;",
                   "});",
-                  "if (json.access_token) pm.collectionVariables.set('access_token', json.access_token);",
-                  "if (json.refresh_token) pm.collectionVariables.set('refresh_token', json.refresh_token);"
+                  "if (json.access_token) pm.environment.set('access_token', json.access_token);",
+                  "if (json.refresh_token) pm.environment.set('refresh_token', json.refresh_token);",
+                  "console.log('access_token rotated:', !!json.access_token);",
+                  "console.log('refresh_token rotated:', !!json.refresh_token);"
                 ],
                 "type": "text/javascript"
               }
