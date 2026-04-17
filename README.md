@@ -1,8 +1,13 @@
 # Go Auth App
 
+![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)
+![Gin](https://img.shields.io/badge/Gin-HTTP%20Framework-009688)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-336791?logo=postgresql)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)
+
 Authentication API built with Go, Gin, GORM, PostgreSQL, and JWT.
 
-This project now uses a modular structure under [`modules/`](/Users/meilanasapta/Code/go-auth-app/modules), with the main modules:
+This repository uses a modular structure centered around:
 - `auth`
 - `user`
 - `role`
@@ -10,19 +15,43 @@ This project now uses a modular structure under [`modules/`](/Users/meilanasapta
 - `token`
 - `social`
 
-## Features
+## Quickstart
 
-- user registration
-- login with access token and refresh token
-- logout
-- profile endpoint
+### Local
+
+```bash
+cp .env.example .env
+go run ./cmd/migrate
+go run ./cmd/seed
+go run .
+```
+
+### Docker
+
+```bash
+cp .env.docker.example .env.docker
+make docker-up
+```
+
+### Test
+
+```bash
+go test ./...
+```
+
+## Overview
+
+This project provides:
+- user registration and login
+- access token and refresh token flow
+- logout and profile endpoints
 - email verification
-- resend verification email
 - forgot password and reset password
-- social login
+- Google social login
 - admin user listing and deletion
 - database migration and seeding
-- Docker-based local development
+- local Docker workflow
+- Render deployment support
 
 ## Tech Stack
 
@@ -33,87 +62,349 @@ This project now uses a modular structure under [`modules/`](/Users/meilanasapta
 - JWT
 - SendGrid
 - golang-migrate
+- Docker
 
 ## Project Structure
 
 ```text
 .
-├── cmd/
-│   ├── migrate/
-│   └── seed/
-├── config/
-├── migrations/
-├── modules/
-│   ├── auth/
-│   ├── permission/
-│   ├── role/
-│   ├── social/
-│   ├── token/
-│   └── user/
-├── routes/
-├── seeds/
-├── services/
-└── utils/
+├── appsetup/         # app bootstrap and route registration
+├── cmd/              # migration and seed entrypoints
+├── config/           # env, db, and app config
+├── migrations/       # SQL migrations
+├── modules/          # modular business domains
+├── postman/          # manual API testing assets
+├── routes/           # compatibility route entrypoint
+├── seeds/            # seed logic
+├── services/         # shared services (jwt, email)
+├── tests/            # tests and mocks
+└── utils/            # helpers
 ```
 
-## Environment Variables
+## Requirements
 
-Copy `.env.example` to `.env`, then fill in the values.
+- Go
+- PostgreSQL
+- Docker and Docker Compose, if you use the container workflow
 
-Common variables used by this project:
+## Environment Configuration
+
+Copy one of the example files depending on your workflow:
+
+- local development: [`.env.example`](/Users/meilanasapta/Code/go-auth-app/.env.example#L1)
+- Docker: [`.env.docker.example`](/Users/meilanasapta/Code/go-auth-app/.env.docker.example#L1)
+- Render: [`.env.render.example`](/Users/meilanasapta/Code/go-auth-app/.env.render.example#L1)
+
+### Common Variables
 
 ```env
 DATABASE_URL=postgresql://postgres:password@localhost:5432/auth_db?sslmode=disable
-AUTO_RUN_MIGRATIONS=false
-AUTO_RUN_SEEDS=false
+JWT_SECRET=replace-with-a-strong-secret
 APP_BASE_URL=http://localhost:8080
 FRONTEND_URL=http://localhost:3000
-
-JWT_SECRET=your-secret
-
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=supersecret
+SENDGRID_API_KEY=
+SENDGRID_EMAIL=
 ```
 
-If you use the email flow, make sure the SendGrid variables are also configured based on [`services/email_service.go`](/Users/meilanasapta/Code/go-auth-app/services/email_service.go#L1).
+### Notes
 
-`APP_BASE_URL` is used for backend-generated links such as email verification. `FRONTEND_URL` is optional and is used for password reset links if you have a separate frontend.
+- `DATABASE_URL` is the primary database connection setting.
+- `APP_BASE_URL` is used for backend-generated links such as email verification.
+- `FRONTEND_URL` is used for password reset links when you have a separate frontend.
+- `AUTO_RUN_MIGRATIONS` and `AUTO_RUN_SEEDS` are intended mainly for hosted deployment flows such as Render.
 
-For local development and Docker, keep `AUTO_RUN_MIGRATIONS=false` and `AUTO_RUN_SEEDS=false` unless you intentionally want startup-time initialization. The usual local and Docker flow still uses `go run ./cmd/migrate`, `go run ./cmd/seed`, or `make db-setup`.
+For local development and Docker, keep:
 
-## Running the Application
+```env
+AUTO_RUN_MIGRATIONS=false
+AUTO_RUN_SEEDS=false
+```
 
-Start the app:
+unless you intentionally want startup-time initialization.
+
+## Local Development
+
+### 1. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Update the values to match your local PostgreSQL setup.
+
+### 2. Run migrations
+
+```bash
+go run ./cmd/migrate
+```
+
+### 3. Run seed data
+
+```bash
+go run ./cmd/seed
+```
+
+### 4. Start the application
 
 ```bash
 go run .
 ```
 
-The server runs on:
+By default the API will be available at:
 
 ```text
 http://localhost:8080
 ```
 
-The app now respects the `PORT` environment variable automatically, which is required for platforms like Render.
+The app respects the `PORT` environment variable automatically.
 
-## Running with Docker
+## API Conventions
 
-This project is Docker-ready and includes:
+- Authenticated routes require:
+
+```http
+Authorization: Bearer <access_token>
+```
+
+- Admin routes require an access token that belongs to an admin user.
+- Refresh tokens are only valid for `POST /auth/refresh`.
+- Most auth endpoints return either:
+  - a JSON object with tokens
+  - or a JSON message/error payload
+
+## Example Requests
+
+### Register
+
+```http
+POST /auth/register
+Content-Type: application/json
+
+{
+  "name": "Tester",
+  "email": "tester@example.com",
+  "password": "secret123"
+}
+```
+
+Example response:
+
+```json
+{
+  "message": "User registered"
+}
+```
+
+### Login
+
+```http
+POST /auth/login
+Content-Type: application/json
+X-Device-ID: web
+
+{
+  "email": "tester@example.com",
+  "password": "secret123"
+}
+```
+
+Example response:
+
+```json
+{
+  "access_token": "<jwt>",
+  "refresh_token": "<jwt>"
+}
+```
+
+### Profile
+
+```http
+GET /auth/profile
+Authorization: Bearer <access_token>
+```
+
+Example response:
+
+```json
+{
+  "id": 1,
+  "name": "Tester",
+  "email": "tester@example.com",
+  "role": "user"
+}
+```
+
+## cURL Examples
+
+Set a base URL first:
+
+```bash
+BASE_URL=http://localhost:8080
+```
+
+### Health
+
+```bash
+curl -X GET "$BASE_URL/health"
+```
+
+### Register
+
+```bash
+curl -X POST "$BASE_URL/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Tester",
+    "email": "tester@example.com",
+    "password": "secret123"
+  }'
+```
+
+### Login
+
+```bash
+curl -X POST "$BASE_URL/auth/login" \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: web" \
+  -d '{
+    "email": "tester@example.com",
+    "password": "secret123"
+  }'
+```
+
+If you want to store the access token quickly in shell:
+
+```bash
+ACCESS_TOKEN=$(curl -s -X POST "$BASE_URL/auth/login" \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: web" \
+  -d '{
+    "email": "tester@example.com",
+    "password": "secret123"
+  }' | jq -r '.access_token')
+```
+
+### Profile
+
+```bash
+curl -X GET "$BASE_URL/auth/profile" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Refresh Token
+
+Store the refresh token:
+
+```bash
+REFRESH_TOKEN=$(curl -s -X POST "$BASE_URL/auth/login" \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: web" \
+  -d '{
+    "email": "tester@example.com",
+    "password": "secret123"
+  }' | jq -r '.refresh_token')
+```
+
+Then refresh:
+
+```bash
+curl -X POST "$BASE_URL/auth/refresh" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"refresh_token\": \"$REFRESH_TOKEN\"
+  }"
+```
+
+### Logout
+
+```bash
+curl -X POST "$BASE_URL/auth/logout" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "X-Device-ID: web"
+```
+
+### Forgot Password
+
+```bash
+curl -X POST "$BASE_URL/auth/forgot-password" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "tester@example.com"
+  }'
+```
+
+### Reset Password
+
+```bash
+curl -X POST "$BASE_URL/auth/reset-password" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "<reset-token>",
+    "new_password": "newsecret123"
+  }'
+```
+
+### Verify Email
+
+```bash
+curl -X GET "$BASE_URL/auth/verify?token=<verify-token>"
+```
+
+### Resend Verification
+
+```bash
+curl -X POST "$BASE_URL/auth/resend-verification" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "tester@example.com"
+  }'
+```
+
+### Social Login
+
+```bash
+curl -X POST "$BASE_URL/auth/social-login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "google",
+    "id_token": "<google-id-token>"
+  }'
+```
+
+### Admin: Get Users
+
+```bash
+curl -X GET "$BASE_URL/auth/admin/users?page=1&limit=10" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Admin: Delete User
+
+```bash
+curl -X DELETE "$BASE_URL/auth/admin/users/1" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+## Docker Workflow
+
+This repository includes:
 - application container
 - PostgreSQL
 - Redis
 - Nginx gateway
-- automatic database setup container
-- basic Nginx rate limiting for `/health` and general API traffic
+- `db-setup` container for migration and seed
+- basic Nginx rate limiting
 
-Start the full stack:
+### Start the full stack
 
 ```bash
 docker-compose --env-file .env.docker up --build
 ```
 
-Or use the Makefile shortcuts:
+### Or use the Makefile shortcuts
 
 ```bash
 make docker-up
@@ -122,11 +413,43 @@ make docker-logs
 make docker-rebuild
 ```
 
-By default, the gateway is exposed on:
+By default the gateway is exposed at:
 
 ```text
 http://localhost
 ```
+
+## Database Tasks
+
+### Run migrations
+
+```bash
+go run ./cmd/migrate
+```
+
+### Run seed data
+
+```bash
+go run ./cmd/seed
+```
+
+### Run both with Makefile
+
+```bash
+make db-setup
+```
+
+Useful Makefile commands:
+
+```bash
+make migrate-up
+make migrate-down
+make migrate-status
+make migrate-create NAME=create_example_table
+make seed
+```
+
+`make migrate-*` uses `DATABASE_URL` when it is present.
 
 ## Deploying to Render with Neon
 
@@ -137,7 +460,7 @@ Recommended Render setup:
 - Start command: `./app`
 - Health check path: `/health`
 
-Recommended environment variables on Render:
+Recommended environment variables:
 
 ```env
 DATABASE_URL=postgresql://<user>:<password>@<your-neon-host>/<db>?sslmode=require
@@ -152,95 +475,148 @@ ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=supersecret
 ```
 
-If you use Neon, prefer its direct connection string with `sslmode=require`. If you later need connection pooling, use Neon's pooled connection string instead.
+Notes:
+- Prefer Neon direct connection strings first.
+- Use `sslmode=require` with Neon.
+- Startup auto-run for migrations and seeds is supported through the app bootstrap.
+- A Render Blueprint starter is included in [`render.yaml`](/Users/meilanasapta/Code/go-auth-app/render.yaml#L1).
 
-For Render deployments, this app can run migrations and seeds automatically at startup when `AUTO_RUN_MIGRATIONS=true` and `AUTO_RUN_SEEDS=true`. This is useful when you do not want to depend on Render's pre-deploy command support.
-
-This repository also includes [`render.yaml`](/Users/meilanasapta/Code/go-auth-app/render.yaml#L1) as a starting point for Render Blueprint-based deployment.
-
-For convenience, you can also start from [`.env.render.example`](/Users/meilanasapta/Code/go-auth-app/.env.render.example#L1) when filling Render environment variables.
-
-## Database Migration
-
-Run migrations with:
+## Makefile Shortcuts
 
 ```bash
-go run ./cmd/migrate
-```
-
-The migration command now reads `DATABASE_URL` first, with backward-compatible fallback to the older `DB_HOST` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_PORT` / `DB_SSLMODE` variables.
-
-Migration files are stored in [`migrations/`](/Users/meilanasapta/Code/go-auth-app/migrations).
-
-## Database Seeding
-
-Run the seeder with:
-
-```bash
-go run ./cmd/seed
-```
-
-Seeder logic is defined in [`seeds/seed.go`](/Users/meilanasapta/Code/go-auth-app/seeds/seed.go#L1).
-
-## Database Setup Shortcut
-
-To run migration and seed in one step:
-
-```bash
+make migrate-up
+make migrate-down
+make migrate-down-all
+make migrate-status
+make migrate-create NAME=create_example_table
+make migrate-force VERSION=1
+make migrate-drop
+make seed
 make db-setup
+make docker-up
+make docker-down
+make docker-logs
+make docker-rebuild
 ```
 
-This target runs:
-- `make migrate-up`
-- `make seed`
+## Testing
 
-`make migrate-*` also prefers `DATABASE_URL` when it is present in your env file.
-
-The Docker setup also uses this shortcut internally through the `db-setup` service in [`docker-compose.yaml`](/Users/meilanasapta/Code/go-auth-app/docker-compose.yaml#L1).
-
-## Running Tests
+### Automated tests
 
 ```bash
 go test ./...
 ```
 
+### Manual testing with Postman
+
+Files included:
+- collection: [`go-auth-app.postman_collection.json`](/Users/meilanasapta/Code/go-auth-app/postman/go-auth-app.postman_collection.json#L1)
+- local environment: [`go-auth-app.local.postman_environment.json`](/Users/meilanasapta/Code/go-auth-app/postman/go-auth-app.local.postman_environment.json#L1)
+
+Recommended manual flow:
+1. `Health`
+2. `Register`
+3. `Verify Email` or mark the user as verified in the database
+4. `Login`
+5. `Profile`
+6. `Refresh Token`
+7. `Logout`
+
+Notes:
+- `Login` and `Refresh Token` update the Postman environment variables for `access_token` and `refresh_token`.
+- `Verify Email` and `Reset Password` require manual token input unless you automate email capture.
+- admin endpoints require an admin access token.
+
+## Troubleshooting
+
+### `invalid token` on `/auth/profile`
+
+Usually caused by one of these:
+- `access_token` was not stored correctly in Postman
+- a `refresh_token` was used instead of an `access_token`
+- the token has expired
+
+Recommended check:
+1. run `Login`
+2. confirm `access_token` exists in the active Postman environment
+3. retry `Profile`
+
+### `relation "users" does not exist`
+
+This means migrations have not run yet.
+
+Use one of:
+
+```bash
+go run ./cmd/migrate
+```
+
+or:
+
+```bash
+make db-setup
+```
+
+For Render, make sure:
+
+```env
+AUTO_RUN_MIGRATIONS=true
+AUTO_RUN_SEEDS=true
+```
+
 ## Main Endpoints
 
-Auth:
+### Auth
+
 - `POST /auth/register`
 - `POST /auth/login`
 - `POST /auth/refresh`
 - `GET /auth/verify`
-- `GET /auth/resend-verification`
+- `POST /auth/resend-verification`
 - `POST /auth/forgot-password`
 - `POST /auth/reset-password`
 - `POST /auth/social-login`
 - `GET /auth/profile`
 - `POST /auth/logout`
 
-Admin:
+### Admin
+
 - `GET /auth/admin/users`
 - `DELETE /auth/admin/users/:id`
 
-Health:
+### Health
+
 - `GET /health`
 
-## Notes
+## Current Architecture Notes
 
-- The main route wiring is assembled in [`main.go`](/Users/meilanasapta/Code/go-auth-app/main.go#L1) and [`routes/route.go`](/Users/meilanasapta/Code/go-auth-app/routes/route.go#L1).
-- JWT helpers live in [`services/jwt_service.go`](/Users/meilanasapta/Code/go-auth-app/services/jwt_service.go#L1).
-- Shared utilities live in [`utils/`](/Users/meilanasapta/Code/go-auth-app/utils).
+- app bootstrap lives in [`appsetup/`](/Users/meilanasapta/Code/go-auth-app/appsetup)
+- runtime configuration is centralized in [`config/app.go`](/Users/meilanasapta/Code/go-auth-app/config/app.go#L1)
+- auth service logic is split by use case under [`modules/auth/`](/Users/meilanasapta/Code/go-auth-app/modules/auth)
+- repository constructors now take explicit DB dependencies instead of relying on global DB state
+
+## Security Notes
+
+- Never commit real secrets to the repository.
+- Use secret managers or platform-managed env vars for production deployments.
+- Rotate any third-party credentials that were ever exposed locally or in git history.
+- Use separate credentials for local, staging, and production environments.
+
+## Roadmap Ideas
+
+- standardize all API responses under one response envelope
+- add database-backed integration tests
+- split readiness and liveness probes
+- further reduce infrastructure-specific behavior inside app startup
+- add CI validation for migration and deployment smoke checks
 
 ## Status
 
-The modular migration is active, and the current repository state passes the test suite.
+The codebase has gone through:
+- modularization cleanup
+- auth hardening
+- bootstrap/config standardization
+- local, Docker, and Render deployment preparation
+- Postman manual testing setup
 
-## TODO
-
-- Use Docker secrets, CI secrets, or platform-managed secrets for serious deployments.
-  Examples: GitHub Actions secrets, Railway, Render, Fly.io, or VPS environment injection.
-- Separate development, Docker, and production environment configuration more explicitly.
-- Rotate any real third-party credentials that were ever stored in local env files.
-- Replace placeholder/local secret handling with a proper secret management workflow.
-- Consider splitting `/health` and `/ready` for clearer liveness vs readiness checks.
-- Consider stronger edge protection for production, such as WAF, CDN, or upstream rate limiting.
+The current repository state passes the test suite.
