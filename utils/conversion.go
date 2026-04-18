@@ -2,7 +2,7 @@ package utils
 
 import (
 	"fmt"
-	user "go-auth-app/modules/user"
+	user "go-api-starterkit/modules/user"
 
 	"github.com/gin-gonic/gin"
 )

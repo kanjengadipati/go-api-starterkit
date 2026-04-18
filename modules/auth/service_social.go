@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"go-auth-app/modules/audit"
-	permissionless "go-auth-app/modules/social"
-	userModule "go-auth-app/modules/user"
+	"go-api-starterkit/modules/audit"
+	permissionless "go-api-starterkit/modules/social"
+	userModule "go-api-starterkit/modules/user"
 
 	"google.golang.org/api/idtoken"
 	"gorm.io/gorm"

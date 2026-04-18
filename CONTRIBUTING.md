@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for considering a contribution to `go-auth-app`.
+Thanks for considering a contribution to `go-api-starterkit`.
 
 ## Before You Start
 

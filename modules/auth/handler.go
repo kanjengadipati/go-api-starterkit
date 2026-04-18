@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"go-auth-app/utils"
+	"go-api-starterkit/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

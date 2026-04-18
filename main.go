@@ -1,10 +1,10 @@
 package main
 
 import (
-	"go-auth-app/appsetup"
-	"go-auth-app/config"
+	"go-api-starterkit/appsetup"
+	"go-api-starterkit/config"
 
-	"go-auth-app/services"
+	"go-api-starterkit/services"
 )
 
 func initApp() {

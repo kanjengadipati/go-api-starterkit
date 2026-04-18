@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Go Auth App API
+  title: Go API Starterkit API
   version: 1.0.0
   description: |
-    OpenAPI reference for go-auth-app.
+    OpenAPI reference for go-api-starterkit.
 
     Most API responses use a standard envelope:
     - success: `status`, `message`, optional `data`, optional `meta`

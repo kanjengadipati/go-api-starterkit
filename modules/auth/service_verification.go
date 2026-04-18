@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"go-auth-app/modules/audit"
-	tokenModule "go-auth-app/modules/token"
+	"go-api-starterkit/modules/audit"
+	tokenModule "go-api-starterkit/modules/token"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"

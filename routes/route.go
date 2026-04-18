@@ -1,11 +1,11 @@
 package routes
 
 import (
-	"go-auth-app/appsetup"
-	"go-auth-app/config"
+	"go-api-starterkit/appsetup"
+	"go-api-starterkit/config"
 
 	"github.com/gin-gonic/gin"
-	"go-auth-app/services"
+	"go-api-starterkit/services"
 	"gorm.io/gorm"
 )
 

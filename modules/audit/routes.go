@@ -1,9 +1,9 @@
 package audit
 
 import (
-	"go-auth-app/middleware"
-	"go-auth-app/modules/permission"
-	"go-auth-app/services"
+	"go-api-starterkit/middleware"
+	"go-api-starterkit/modules/permission"
+	"go-api-starterkit/services"
 
 	"github.com/gin-gonic/gin"
 )

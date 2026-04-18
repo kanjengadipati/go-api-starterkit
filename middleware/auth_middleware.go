@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"go-auth-app/httpx"
-	"go-auth-app/services"
+	"go-api-starterkit/httpx"
+	"go-api-starterkit/services"
 	"strings"
 
 	"github.com/gin-gonic/gin"

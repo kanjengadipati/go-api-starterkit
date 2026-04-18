@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"go-auth-app/modules/audit"
-	"go-auth-app/utils"
+	"go-api-starterkit/modules/audit"
+	"go-api-starterkit/utils"
 
 	"gorm.io/gorm"
 )

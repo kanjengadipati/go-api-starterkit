@@ -5,10 +5,10 @@ import (
 	"log"
 	"time"
 
-	"go-auth-app/modules/audit"
-	tokenModule "go-auth-app/modules/token"
-	userModule "go-auth-app/modules/user"
-	"go-auth-app/utils"
+	"go-api-starterkit/modules/audit"
+	tokenModule "go-api-starterkit/modules/token"
+	userModule "go-api-starterkit/modules/user"
+	"go-api-starterkit/utils"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"

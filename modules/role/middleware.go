@@ -3,7 +3,7 @@ package role
 import (
 	"net/http"
 
-	"go-auth-app/httpx"
+	"go-api-starterkit/httpx"
 
 	"github.com/gin-gonic/gin"
 )

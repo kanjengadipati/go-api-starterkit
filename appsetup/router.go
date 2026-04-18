@@ -1,13 +1,13 @@
 package appsetup
 
 import (
-	"go-auth-app/config"
-	"go-auth-app/httpx"
-	"go-auth-app/modules/audit"
-	"go-auth-app/modules/auth"
-	"go-auth-app/modules/permission"
-	"go-auth-app/modules/user"
-	"go-auth-app/services"
+	"go-api-starterkit/config"
+	"go-api-starterkit/httpx"
+	"go-api-starterkit/modules/audit"
+	"go-api-starterkit/modules/auth"
+	"go-api-starterkit/modules/permission"
+	"go-api-starterkit/modules/user"
+	"go-api-starterkit/services"
 
 	"gorm.io/gorm"
 

@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"go-auth-app/middleware"
-	"go-auth-app/services"
+	"go-api-starterkit/middleware"
+	"go-api-starterkit/services"
 
 	"github.com/gin-gonic/gin"
 )

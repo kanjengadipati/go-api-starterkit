@@ -1,12 +1,12 @@
 package auth
 
 import (
-	"go-auth-app/config"
-	"go-auth-app/modules/audit"
-	permissionless "go-auth-app/modules/social"
-	tokenModule "go-auth-app/modules/token"
-	userModule "go-auth-app/modules/user"
-	"go-auth-app/services"
+	"go-api-starterkit/config"
+	"go-api-starterkit/modules/audit"
+	permissionless "go-api-starterkit/modules/social"
+	tokenModule "go-api-starterkit/modules/token"
+	userModule "go-api-starterkit/modules/user"
+	"go-api-starterkit/services"
 
 	"gorm.io/gorm"
 )

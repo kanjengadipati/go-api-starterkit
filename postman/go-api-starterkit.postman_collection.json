@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "Go Auth App",
+    "name": "Go API Starterkit",
     "_postman_id": "4c4e63c5-d2a7-4c2b-bc63-0e9b6c9d3f6f",
-    "description": "Manual test collection for go-auth-app",
+    "description": "Manual test collection for go-api-starterkit",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [

@@ -1,4 +1,4 @@
-# Go Auth App
+# Go API Starterkit
 
 ![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)
 ![Gin](https://img.shields.io/badge/Gin-HTTP%20Framework-009688)
@@ -69,11 +69,11 @@ This project provides:
 
 ## Project Metadata
 
-- License: [MIT](/Users/meilanasapta/Code/go-auth-app/LICENSE#L1)
-- Contributing guide: [CONTRIBUTING.md](/Users/meilanasapta/Code/go-auth-app/CONTRIBUTING.md#L1)
-- Security policy: [SECURITY.md](/Users/meilanasapta/Code/go-auth-app/SECURITY.md#L1)
-- Code of conduct: [CODE_OF_CONDUCT.md](/Users/meilanasapta/Code/go-auth-app/CODE_OF_CONDUCT.md#L1)
-- CI workflow: [ci.yml](/Users/meilanasapta/Code/go-auth-app/.github/workflows/ci.yml#L1)
+- License: [MIT](LICENSE)
+- Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Security policy: [SECURITY.md](SECURITY.md)
+- Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- CI workflow: [ci.yml](.github/workflows/ci.yml)
 
 ## Project Structure
 
@@ -103,9 +103,9 @@ This project provides:
 
 Copy one of the example files depending on your workflow:
 
-- local development: [`.env.example`](/Users/meilanasapta/Code/go-auth-app/.env.example#L1)
-- Docker: [`.env.docker.example`](/Users/meilanasapta/Code/go-auth-app/.env.docker.example#L1)
-- Render: [`.env.render.example`](/Users/meilanasapta/Code/go-auth-app/.env.render.example#L1)
+- local development: [`.env.example`](.env.example)
+- Docker: [`.env.docker.example`](.env.docker.example)
+- Render: [`.env.render.example`](.env.render.example)
 
 ### Common Variables
 
@@ -185,7 +185,7 @@ Authorization: Bearer <access_token>
 - API responses use a standard envelope:
   - success: `status`, `message`, optional `data`, optional `meta`
   - error: `status`, `message`, optional `errors`
-- OpenAPI reference is available at [`docs/openapi.yaml`](/Users/meilanasapta/Code/go-auth-app/docs/openapi.yaml#L1)
+- OpenAPI reference is available at [`docs/openapi.yaml`](docs/openapi.yaml)
 - Swagger UI is served by the app at `/docs`
 
 ## Example Requests
@@ -568,7 +568,7 @@ Notes:
 - Prefer Neon direct connection strings first.
 - Use `sslmode=require` with Neon.
 - Startup auto-run for migrations and seeds is supported through the app bootstrap.
-- A Render Blueprint starter is included in [`render.yaml`](/Users/meilanasapta/Code/go-auth-app/render.yaml#L1).
+- A Render Blueprint starter is included in [`render.yaml`](render.yaml).
 
 ## Makefile Shortcuts
 
@@ -599,8 +599,8 @@ go test ./...
 ### Manual testing with Postman
 
 Files included:
-- collection: [`go-auth-app.postman_collection.json`](/Users/meilanasapta/Code/go-auth-app/postman/go-auth-app.postman_collection.json#L1)
-- local environment: [`go-auth-app.local.postman_environment.json`](/Users/meilanasapta/Code/go-auth-app/postman/go-auth-app.local.postman_environment.json#L1)
+- collection: [`go-api-starterkit.postman_collection.json`](postman/go-api-starterkit.postman_collection.json)
+- local environment: [`go-api-starterkit.local.postman_environment.json`](postman/go-api-starterkit.local.postman_environment.json)
 
 Recommended manual flow:
 1. `Health`
@@ -689,9 +689,9 @@ AUTO_RUN_SEEDS=true
 
 ## Current Architecture Notes
 
-- app bootstrap lives in [`appsetup/`](/Users/meilanasapta/Code/go-auth-app/appsetup)
-- runtime configuration is centralized in [`config/app.go`](/Users/meilanasapta/Code/go-auth-app/config/app.go#L1)
-- auth service logic is split by use case under [`modules/auth/`](/Users/meilanasapta/Code/go-auth-app/modules/auth)
+- app bootstrap lives in [`appsetup/`](appsetup)
+- runtime configuration is centralized in [`config/app.go`](config/app.go)
+- auth service logic is split by use case under [`modules/auth/`](modules/auth)
 - repository constructors now take explicit DB dependencies instead of relying on global DB state
 - admin routes now use permission checks instead of role-only checks for finer authorization control
 

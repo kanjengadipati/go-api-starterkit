@@ -3,8 +3,8 @@ package appsetup
 import (
 	"log"
 
-	"go-auth-app/config"
-	"go-auth-app/seeds"
+	"go-api-starterkit/config"
+	"go-api-starterkit/seeds"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"

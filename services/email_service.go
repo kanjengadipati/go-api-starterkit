@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"go-auth-app/config"
+	"go-api-starterkit/config"
 
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"

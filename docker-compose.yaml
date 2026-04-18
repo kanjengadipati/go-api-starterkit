@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: go-auth-app
+    container_name: go-api-starterkit
     restart: always
     env_file:
       - .env.docker

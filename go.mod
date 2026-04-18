@@ -1,4 +1,4 @@
-module go-auth-app
+module go-api-starterkit
 
 go 1.25.0
 

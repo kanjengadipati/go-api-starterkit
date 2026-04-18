@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"go-auth-app/modules/audit"
+	"go-api-starterkit/modules/audit"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"

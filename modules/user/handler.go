@@ -3,8 +3,8 @@ package user
 import (
 	"strconv"
 
-	"go-auth-app/httpx"
-	"go-auth-app/modules/audit"
+	"go-api-starterkit/httpx"
+	"go-api-starterkit/modules/audit"
 
 	"github.com/gin-gonic/gin"
 )

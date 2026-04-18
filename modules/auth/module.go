@@ -1,10 +1,10 @@
 package auth
 
 import (
-	"go-auth-app/config"
-	"go-auth-app/modules/audit"
-	userModule "go-auth-app/modules/user"
-	"go-auth-app/services"
+	"go-api-starterkit/config"
+	"go-api-starterkit/modules/audit"
+	userModule "go-api-starterkit/modules/user"
+	"go-api-starterkit/services"
 
 	"gorm.io/gorm"
 )

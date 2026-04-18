@@ -2,10 +2,10 @@ package seeds
 
 import (
 	"fmt"
-	"go-auth-app/config"
-	permissionModule "go-auth-app/modules/permission"
-	roleModule "go-auth-app/modules/role"
-	userModule "go-auth-app/modules/user"
+	"go-api-starterkit/config"
+	permissionModule "go-api-starterkit/modules/permission"
+	roleModule "go-api-starterkit/modules/role"
+	userModule "go-api-starterkit/modules/user"
 	"log"
 
 	"golang.org/x/crypto/bcrypt"

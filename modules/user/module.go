@@ -1,7 +1,7 @@
 package user
 
 import (
-	"go-auth-app/modules/audit"
+	"go-api-starterkit/modules/audit"
 
 	"gorm.io/gorm"
 )
