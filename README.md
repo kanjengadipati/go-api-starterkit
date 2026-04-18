@@ -67,6 +67,14 @@ This project provides:
 - golang-migrate
 - Docker
 
+## Project Metadata
+
+- License: [MIT](/Users/meilanasapta/Code/go-auth-app/LICENSE#L1)
+- Contributing guide: [CONTRIBUTING.md](/Users/meilanasapta/Code/go-auth-app/CONTRIBUTING.md#L1)
+- Security policy: [SECURITY.md](/Users/meilanasapta/Code/go-auth-app/SECURITY.md#L1)
+- Code of conduct: [CODE_OF_CONDUCT.md](/Users/meilanasapta/Code/go-auth-app/CODE_OF_CONDUCT.md#L1)
+- CI workflow: [ci.yml](/Users/meilanasapta/Code/go-auth-app/.github/workflows/ci.yml#L1)
+
 ## Project Structure
 
 ```text
@@ -89,7 +97,7 @@ This project provides:
 
 - Go
 - PostgreSQL
-- Docker and Docker Compose, if you use the container workflow
+- Docker and Docker Compose (or Colima), if you use the container workflow
 
 ## Environment Configuration
 
