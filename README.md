@@ -131,6 +131,7 @@ APPLE_CLIENT_ID=
 ### Notes
 
 - `DATABASE_URL` is the primary database connection setting.
+- the app validates critical configuration at startup and exits early when required values are missing or incomplete.
 - `APP_BASE_URL` is used for backend-generated links such as email verification.
 - `FRONTEND_URL` is used for password reset links when you have a separate frontend.
 - `GOOGLE_CLIENT_ID` is optional, but recommended so Google token validation checks the audience claim.

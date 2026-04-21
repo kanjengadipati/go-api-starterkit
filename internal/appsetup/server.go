@@ -11,6 +11,10 @@ func RunAPI(registerDocs func(*gin.Engine)) error {
 	config.LoadEnv()
 
 	appConfig := config.LoadAppConfig()
+	if err := appConfig.Validate(); err != nil {
+		return err
+	}
+
 	db := config.ConnectDB(appConfig.DatabaseURL)
 	RunStartupTasks(appConfig, db)
 
