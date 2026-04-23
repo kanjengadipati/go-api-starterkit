@@ -2,10 +2,12 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +19,7 @@ func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestOllamaProviderGenerateSuccess(t *testing.T) {
-	provider := NewOllamaProvider("http://ollama.local")
+	provider := NewOllamaProvider("http://ollama.local", 5*time.Second)
 	provider.client = &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			assert.Equal(t, http.MethodPost, req.Method)
@@ -40,7 +42,7 @@ func TestOllamaProviderGenerateSuccess(t *testing.T) {
 }
 
 func TestOllamaProviderGenerateReturnsModelMissing(t *testing.T) {
-	provider := NewOllamaProvider("http://ollama.local")
+	provider := NewOllamaProvider("http://ollama.local", 5*time.Second)
 	provider.client = &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
@@ -59,4 +61,22 @@ func TestOllamaProviderGenerateReturnsModelMissing(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, ErrOllamaModelMissing)
+}
+
+func TestOllamaProviderGenerateReturnsTimeout(t *testing.T) {
+	provider := NewOllamaProvider("http://ollama.local", 5*time.Second)
+	provider.client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return nil, context.DeadlineExceeded
+		}),
+	}
+
+	result, err := provider.Generate(context.Background(), GenerateInput{
+		Model:      "qwen2.5:3b",
+		UserPrompt: "hello",
+	})
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, ErrTimeout))
 }

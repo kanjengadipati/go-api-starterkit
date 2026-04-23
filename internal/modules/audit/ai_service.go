@@ -2,6 +2,8 @@ package audit
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,14 +17,23 @@ import (
 )
 
 type InvestigatorService struct {
-	AI   *ai.Service
-	Repo Repository
+	AI       *ai.Service
+	Repo     Repository
+	AuditLog *Service
 }
 
-func NewInvestigatorService(repo Repository, aiService *ai.Service) *InvestigatorService {
+const (
+	investigationPromptVersion  = "v3"
+	investigationRawLogLimit    = 25
+	investigationChunkSize      = 20
+	investigationChunkSampleCap = 3
+)
+
+func NewInvestigatorService(repo Repository, aiService *ai.Service, auditLogService *Service) *InvestigatorService {
 	return &InvestigatorService{
-		AI:   aiService,
-		Repo: repo,
+		AI:       aiService,
+		Repo:     repo,
+		AuditLog: auditLogService,
 	}
 }
 
@@ -34,8 +45,8 @@ func (s *InvestigatorService) Investigate(ctx context.Context, filter Filter) (*
 	if filter.Limit <= 0 {
 		filter.Limit = 50
 	}
-	if filter.Limit > 200 {
-		filter.Limit = 200
+	if filter.Limit > 100 {
+		filter.Limit = 100
 	}
 	filter.Page = 1
 
@@ -58,20 +69,36 @@ func (s *InvestigatorService) Investigate(ctx context.Context, filter Filter) (*
 
 	parsed, err := parseInvestigationResult(strings.TrimSpace(result.Text))
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse ai investigation response: %w", err)
+		return nil, nil, fmt.Errorf("%w: %v", ai.ErrInvalidStructuredOutput, err)
 	}
 	parsed = mergeInvestigationHeuristics(parsed, logs)
 
 	return parsed, logs, nil
 }
 
-func (s *InvestigatorService) SaveInvestigation(createdByUserID *uint, filter Filter, result *InvestigationResult, logs []AuditLog) (*InvestigationHistory, error) {
+func (s *InvestigatorService) SaveInvestigation(createdByUserID *uint, filter Filter, result *InvestigationResult, logs []AuditLog, ipAddress string, userAgent string) (*InvestigationHistory, bool, error) {
 	if s == nil || s.Repo == nil {
-		return nil, errors.New("audit repository is not configured")
+		return nil, false, errors.New("audit repository is not configured")
+	}
+
+	snapshotHash, err := buildInvestigationSnapshotHash(createdByUserID, filter, logs, s.AI)
+	if err != nil {
+		return nil, false, err
+	}
+
+	existing, err := s.Repo.FindLatestInvestigationBySnapshot(createdByUserID, snapshotHash)
+	if err == nil && existing != nil {
+		history := existing.ToHistory()
+		s.recordInvestigationAudit(createdByUserID, history.ID, filter, history.LogCount, "reused", ipAddress, userAgent)
+		return &history, true, nil
+	}
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, false, err
 	}
 
 	record := &AuditInvestigation{
 		CreatedByUserID:       createdByUserID,
+		SnapshotHash:          snapshotHash,
 		Action:                filter.Action,
 		Resource:              filter.Resource,
 		Status:                filter.Status,
@@ -90,11 +117,12 @@ func (s *InvestigatorService) SaveInvestigation(createdByUserID *uint, filter Fi
 	}
 
 	if err := s.Repo.CreateInvestigation(record); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	history := record.ToHistory()
-	return &history, nil
+	s.recordInvestigationAudit(createdByUserID, history.ID, filter, len(logs), "created", ipAddress, userAgent)
+	return &history, false, nil
 }
 
 func (s *InvestigatorService) ListInvestigations(filter InvestigationFilter) ([]InvestigationHistory, int64, error) {
@@ -131,11 +159,122 @@ func (s *InvestigatorService) GetInvestigationByID(id uint) (*InvestigationHisto
 	return &history, nil
 }
 
+func buildInvestigationSnapshotHash(createdByUserID *uint, filter Filter, logs []AuditLog, aiService *ai.Service) (string, error) {
+	logIDs := make([]uint, 0, len(logs))
+	for _, logEntry := range logs {
+		logIDs = append(logIDs, logEntry.ID)
+	}
+
+	payload := struct {
+		PromptVersion   string `json:"prompt_version"`
+		CreatedByUserID *uint  `json:"created_by_user_id,omitempty"`
+		Action          string `json:"action"`
+		Resource        string `json:"resource"`
+		Status          string `json:"status"`
+		ActorUserID     *uint  `json:"actor_user_id,omitempty"`
+		Search          string `json:"search"`
+		DateFrom        string `json:"date_from,omitempty"`
+		DateTo          string `json:"date_to,omitempty"`
+		Limit           int    `json:"limit"`
+		LogIDs          []uint `json:"log_ids"`
+		AIProvider      string `json:"ai_provider"`
+		AIModel         string `json:"ai_model"`
+	}{
+		PromptVersion:   investigationPromptVersion,
+		CreatedByUserID: createdByUserID,
+		Action:          filter.Action,
+		Resource:        filter.Resource,
+		Status:          filter.Status,
+		ActorUserID:     filter.ActorUserID,
+		Search:          strings.TrimSpace(filter.Search),
+		DateFrom:        formatSnapshotTime(filter.DateFrom),
+		DateTo:          formatSnapshotTime(filter.DateTo),
+		Limit:           filter.Limit,
+		LogIDs:          logIDs,
+		AIProvider:      providerName(aiService),
+		AIModel:         modelName(aiService),
+	}
+
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+
+	sum := sha256.Sum256(encoded)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+func formatSnapshotTime(value *time.Time) string {
+	if value == nil {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339)
+}
+
+func providerName(aiService *ai.Service) string {
+	if aiService == nil {
+		return ""
+	}
+	return aiService.ProviderName()
+}
+
+func modelName(aiService *ai.Service) string {
+	if aiService == nil {
+		return ""
+	}
+	return aiService.ModelName()
+}
+
+func (s *InvestigatorService) recordInvestigationAudit(createdByUserID *uint, investigationID uint, filter Filter, logCount int, action string, ipAddress string, userAgent string) {
+	if s == nil || s.AuditLog == nil {
+		return
+	}
+
+	resourceID := investigationID
+	description := fmt.Sprintf(
+		"audit investigation %s for resource=%s action=%s status=%s log_count=%d",
+		action,
+		emptyStringFallback(filter.Resource),
+		emptyStringFallback(filter.Action),
+		emptyStringFallback(filter.Status),
+		logCount,
+	)
+
+	s.AuditLog.SafeRecord(RecordInput{
+		ActorUserID: createdByUserID,
+		Action:      action,
+		Resource:    "audit_investigation",
+		ResourceID:  &resourceID,
+		Status:      "success",
+		Description: description,
+		IPAddress:   ipAddress,
+		UserAgent:   userAgent,
+	})
+}
+
 func buildInvestigationContext(logs []AuditLog) string {
-	lines := make([]string, 0, len(logs)+1)
+	lines := make([]string, 0, len(logs)+4)
 	lines = append(lines, fmt.Sprintf("Audit log count: %d", len(logs)))
 	lines = append(lines, buildInvestigationOverview(logs))
 	lines = append(lines, "Use the event summaries below to build a concise timeline and suspicious signals.")
+
+	if len(logs) > investigationRawLogLimit {
+		lines = append(lines, fmt.Sprintf(
+			"Context mode: chunked_summary. The %d logs were compressed into %d chunks of at most %d logs each before sending to AI.",
+			len(logs),
+			chunkCount(len(logs), investigationChunkSize),
+			investigationChunkSize,
+		))
+		lines = append(lines, buildInvestigationChunkSummaries(logs)...)
+		return strings.Join(lines, "\n")
+	}
+
+	lines = append(lines, buildDetailedInvestigationLogs(logs)...)
+	return strings.Join(lines, "\n")
+}
+
+func buildDetailedInvestigationLogs(logs []AuditLog) []string {
+	lines := make([]string, 0, len(logs)*10)
 	for _, logEntry := range logs {
 		lines = append(lines, fmt.Sprintf("- log %d", logEntry.ID))
 		lines = append(lines, fmt.Sprintf("  time: %s", logEntry.CreatedAt.UTC().Format(time.RFC3339)))
@@ -148,7 +287,121 @@ func buildInvestigationContext(logs []AuditLog) string {
 		lines = append(lines, fmt.Sprintf("  user_agent: %s", emptyStringFallback(logEntry.UserAgent)))
 		lines = append(lines, fmt.Sprintf("  description: %q", strings.TrimSpace(logEntry.Description)))
 	}
-	return strings.Join(lines, "\n")
+	return lines
+}
+
+func buildInvestigationChunkSummaries(logs []AuditLog) []string {
+	lines := make([]string, 0, chunkCount(len(logs), investigationChunkSize)*6)
+	for chunkIndex, start := 0, 0; start < len(logs); chunkIndex, start = chunkIndex+1, start+investigationChunkSize {
+		end := start + investigationChunkSize
+		if end > len(logs) {
+			end = len(logs)
+		}
+		chunk := logs[start:end]
+		lines = append(lines, summarizeInvestigationChunk(chunkIndex+1, chunk)...)
+	}
+	return lines
+}
+
+func summarizeInvestigationChunk(chunkNumber int, logs []AuditLog) []string {
+	if len(logs) == 0 {
+		return nil
+	}
+
+	failedCount := 0
+	uniqueIPs := make(map[string]struct{})
+	uniqueActors := make(map[string]struct{})
+	actionCounts := make(map[string]int)
+	firstSeen := logs[0].CreatedAt.UTC()
+	lastSeen := logs[0].CreatedAt.UTC()
+
+	lines := []string{
+		fmt.Sprintf("- chunk %d", chunkNumber),
+	}
+
+	for _, logEntry := range logs {
+		if strings.EqualFold(logEntry.Status, "failed") {
+			failedCount++
+		}
+		if ip := strings.TrimSpace(logEntry.IPAddress); ip != "" {
+			uniqueIPs[ip] = struct{}{}
+		}
+		if actor := pointerStringFallback(logEntry.ActorUserID); actor != "n/a" {
+			uniqueActors[actor] = struct{}{}
+		}
+		actionKey := fmt.Sprintf("%s/%s/%s", emptyStringFallback(logEntry.Status), emptyStringFallback(logEntry.Action), emptyStringFallback(logEntry.Resource))
+		actionCounts[actionKey]++
+		if ts := logEntry.CreatedAt.UTC(); ts.Before(firstSeen) {
+			firstSeen = ts
+		}
+		if ts := logEntry.CreatedAt.UTC(); ts.After(lastSeen) {
+			lastSeen = ts
+		}
+	}
+
+	lines = append(lines,
+		fmt.Sprintf("  range: %s to %s", firstSeen.Format(time.RFC3339), lastSeen.Format(time.RFC3339)),
+		fmt.Sprintf("  totals: logs=%d failed=%d unique_ip_addresses=%d unique_actor_user_ids=%d", len(logs), failedCount, len(uniqueIPs), len(uniqueActors)),
+		fmt.Sprintf("  top_patterns: %s", strings.Join(topChunkPatterns(actionCounts, 3), "; ")),
+	)
+
+	sampleLimit := investigationChunkSampleCap
+	if len(logs) < sampleLimit {
+		sampleLimit = len(logs)
+	}
+	for _, logEntry := range logs[:sampleLimit] {
+		lines = append(lines, fmt.Sprintf(
+			"  sample_event: %s - %s %s on %s from ip %s (actor_user_id: %s)",
+			logEntry.CreatedAt.UTC().Format(time.RFC3339),
+			emptyStringFallback(logEntry.Status),
+			emptyStringFallback(logEntry.Action),
+			emptyStringFallback(logEntry.Resource),
+			emptyStringFallback(logEntry.IPAddress),
+			pointerStringFallback(logEntry.ActorUserID),
+		))
+	}
+
+	return lines
+}
+
+func topChunkPatterns(counts map[string]int, limit int) []string {
+	type item struct {
+		label string
+		count int
+	}
+
+	items := make([]item, 0, len(counts))
+	for label, count := range counts {
+		items = append(items, item{label: label, count: count})
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].count == items[j].count {
+			return items[i].label < items[j].label
+		}
+		return items[i].count > items[j].count
+	})
+
+	if len(items) > limit {
+		items = items[:limit]
+	}
+
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		result = append(result, fmt.Sprintf("%s x%d", item.label, item.count))
+	}
+	return result
+}
+
+func chunkCount(total int, size int) int {
+	if total <= 0 || size <= 0 {
+		return 0
+	}
+	count := total / size
+	if total%size != 0 {
+		count++
+	}
+	return count
 }
 
 func buildInvestigationOverview(logs []AuditLog) string {

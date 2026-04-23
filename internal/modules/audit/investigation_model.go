@@ -10,6 +10,7 @@ import (
 type AuditInvestigation struct {
 	gorm.Model
 	CreatedByUserID       *uint      `json:"created_by_user_id"`
+	SnapshotHash          string     `json:"-"`
 	Action                string     `json:"action"`
 	Resource              string     `json:"resource"`
 	Status                string     `json:"status"`

@@ -16,7 +16,7 @@ type Module struct {
 func BuildModule(db *gorm.DB, aiService *ai.Service) *Module {
 	repository := NewRepository(db)
 	service := NewService(repository)
-	investigatorService := NewInvestigatorService(repository, aiService)
+	investigatorService := NewInvestigatorService(repository, aiService, service)
 	handler := NewHandler(service, investigatorService)
 
 	return &Module{

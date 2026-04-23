@@ -5,8 +5,31 @@ import (
 	"testing"
 	"time"
 
+	"go-api-starterkit/internal/ai"
+	"go-api-starterkit/internal/config"
+
 	"gorm.io/gorm"
 )
+
+type investigatorRepoStub struct {
+	findAllWithFilter func(filter Filter) ([]AuditLog, int64, error)
+}
+
+func (s *investigatorRepoStub) Create(log *AuditLog) error { return nil }
+func (s *investigatorRepoStub) FindAllWithFilter(filter Filter) ([]AuditLog, int64, error) {
+	return s.findAllWithFilter(filter)
+}
+func (s *investigatorRepoStub) FindForExport(filter Filter) ([]AuditLog, error)      { return nil, nil }
+func (s *investigatorRepoStub) CreateInvestigation(record *AuditInvestigation) error { return nil }
+func (s *investigatorRepoStub) FindLatestInvestigationBySnapshot(createdByUserID *uint, snapshotHash string) (*AuditInvestigation, error) {
+	return nil, gorm.ErrRecordNotFound
+}
+func (s *investigatorRepoStub) FindInvestigations(filter InvestigationFilter) ([]AuditInvestigation, int64, error) {
+	return nil, 0, nil
+}
+func (s *investigatorRepoStub) FindInvestigationByID(id uint) (*AuditInvestigation, error) {
+	return nil, gorm.ErrRecordNotFound
+}
 
 func TestParseInvestigationResultSupportsStructuredValues(t *testing.T) {
 	raw := `{
@@ -90,6 +113,42 @@ func TestBuildInvestigationContextSeparatesActorAndIPAddress(t *testing.T) {
 	if !strings.Contains(context, "Overview: failed_logs=1 unique_ip_addresses=1 unique_actor_user_ids=0") {
 		t.Fatalf("expected overview summary in context, got %q", context)
 	}
+	if strings.Contains(context, "Context mode: chunked_summary") {
+		t.Fatalf("did not expect chunked summary mode for a single log, got %q", context)
+	}
+}
+
+func TestBuildInvestigationContextUsesChunkedSummaryForLargeLogSets(t *testing.T) {
+	logs := make([]AuditLog, 0, 30)
+	baseTime := time.Date(2026, 4, 22, 2, 0, 0, 0, time.UTC)
+	for i := 0; i < 30; i++ {
+		logs = append(logs, AuditLog{
+			Model: gorm.Model{
+				ID:        uint(i + 1),
+				CreatedAt: baseTime.Add(time.Duration(i) * time.Minute),
+			},
+			Action:      "login",
+			Resource:    "auth",
+			Status:      "failed",
+			Description: "invalid credentials",
+			IPAddress:   "203.0.113.10",
+		})
+	}
+
+	context := buildInvestigationContext(logs)
+
+	if !strings.Contains(context, "Context mode: chunked_summary") {
+		t.Fatalf("expected chunked summary mode, got %q", context)
+	}
+	if !strings.Contains(context, "- chunk 1") || !strings.Contains(context, "- chunk 2") {
+		t.Fatalf("expected chunk summaries, got %q", context)
+	}
+	if !strings.Contains(context, "sample_event:") {
+		t.Fatalf("expected sample events in chunk summary, got %q", context)
+	}
+	if strings.Contains(context, "- log 30") {
+		t.Fatalf("did not expect raw per-log dump in chunked mode, got %q", context)
+	}
 }
 
 func TestMergeInvestigationHeuristicsBuildsReadableFallbacks(t *testing.T) {
@@ -159,5 +218,41 @@ func TestParseInvestigationResultExtractsJSONFromCodeFence(t *testing.T) {
 	}
 	if result.Summary != "ok" {
 		t.Fatalf("unexpected summary: %q", result.Summary)
+	}
+}
+
+func TestInvestigateCapsLimitAtOneHundred(t *testing.T) {
+	aiService, err := ai.NewService(config.AIConfig{
+		Enabled:        true,
+		Provider:       "mock",
+		Model:          "mock-model",
+		TimeoutSeconds: 30,
+	})
+	if err != nil {
+		t.Fatalf("expected ai service, got error: %v", err)
+	}
+
+	repo := &investigatorRepoStub{
+		findAllWithFilter: func(filter Filter) ([]AuditLog, int64, error) {
+			if filter.Limit != 100 {
+				t.Fatalf("expected limit to be capped at 100, got %d", filter.Limit)
+			}
+			return []AuditLog{
+				{
+					Model:       gorm.Model{ID: 1, CreatedAt: time.Date(2026, 4, 22, 2, 31, 14, 0, time.UTC)},
+					Action:      "login",
+					Resource:    "auth",
+					Status:      "failed",
+					Description: "invalid credentials",
+					IPAddress:   "::1",
+				},
+			}, 1, nil
+		},
+	}
+
+	service := NewInvestigatorService(repo, aiService, NewService(repo))
+	_, _, err = service.Investigate(t.Context(), Filter{Resource: "auth", Limit: 1000})
+	if err != nil {
+		t.Fatalf("expected investigation to succeed, got error: %v", err)
 	}
 }

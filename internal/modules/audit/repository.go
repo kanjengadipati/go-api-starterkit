@@ -37,6 +37,7 @@ type Repository interface {
 	FindAllWithFilter(filter Filter) ([]AuditLog, int64, error)
 	FindForExport(filter Filter) ([]AuditLog, error)
 	CreateInvestigation(record *AuditInvestigation) error
+	FindLatestInvestigationBySnapshot(createdByUserID *uint, snapshotHash string) (*AuditInvestigation, error)
 	FindInvestigations(filter InvestigationFilter) ([]AuditInvestigation, int64, error)
 	FindInvestigationByID(id uint) (*AuditInvestigation, error)
 }
@@ -55,6 +56,22 @@ func (r *gormRepository) Create(log *AuditLog) error {
 
 func (r *gormRepository) CreateInvestigation(record *AuditInvestigation) error {
 	return r.db.Create(record).Error
+}
+
+func (r *gormRepository) FindLatestInvestigationBySnapshot(createdByUserID *uint, snapshotHash string) (*AuditInvestigation, error) {
+	var item AuditInvestigation
+
+	query := r.db.Where("snapshot_hash = ?", snapshotHash)
+	if createdByUserID == nil {
+		query = query.Where("created_by_user_id IS NULL")
+	} else {
+		query = query.Where("created_by_user_id = ?", *createdByUserID)
+	}
+
+	if err := query.Order("created_at DESC").First(&item).Error; err != nil {
+		return nil, err
+	}
+	return &item, nil
 }
 
 func (r *gormRepository) FindAllWithFilter(filter Filter) ([]AuditLog, int64, error) {

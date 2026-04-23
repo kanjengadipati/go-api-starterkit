@@ -20,12 +20,17 @@ import (
 type stubAuditRepo struct {
 	findAllWithFilter     func(filter audit.Filter) ([]audit.AuditLog, int64, error)
 	findForExport         func(filter audit.Filter) ([]audit.AuditLog, error)
+	createLog             func(log *audit.AuditLog) error
 	createInvestigation   func(record *audit.AuditInvestigation) error
+	findBySnapshot        func(createdByUserID *uint, snapshotHash string) (*audit.AuditInvestigation, error)
 	findInvestigations    func(filter audit.InvestigationFilter) ([]audit.AuditInvestigation, int64, error)
 	findInvestigationByID func(id uint) (*audit.AuditInvestigation, error)
 }
 
 func (s *stubAuditRepo) Create(log *audit.AuditLog) error {
+	if s.createLog != nil {
+		return s.createLog(log)
+	}
 	return nil
 }
 
@@ -49,6 +54,13 @@ func (s *stubAuditRepo) CreateInvestigation(record *audit.AuditInvestigation) er
 	}
 	record.ID = 1
 	return nil
+}
+
+func (s *stubAuditRepo) FindLatestInvestigationBySnapshot(createdByUserID *uint, snapshotHash string) (*audit.AuditInvestigation, error) {
+	if s.findBySnapshot != nil {
+		return s.findBySnapshot(createdByUserID, snapshotHash)
+	}
+	return nil, gorm.ErrRecordNotFound
 }
 
 func (s *stubAuditRepo) FindInvestigations(filter audit.InvestigationFilter) ([]audit.AuditInvestigation, int64, error) {
@@ -210,7 +222,7 @@ func TestAuditInvestigatorService_WithMockProvider(t *testing.T) {
 		},
 	}
 
-	service := audit.NewInvestigatorService(repo, aiService)
+	service := audit.NewInvestigatorService(repo, aiService, audit.NewService(repo))
 	result, logs, err := service.Investigate(t.Context(), audit.Filter{Resource: "auth", Limit: 20})
 
 	assert.NoError(t, err)
@@ -253,13 +265,20 @@ func TestAuditHandler_InvestigateLogs_Success(t *testing.T) {
 			assert.Equal(t, "mock", record.AIProvider)
 			assert.Equal(t, "mock-model", record.AIModel)
 			assert.Equal(t, 1, record.LogCount)
+			assert.NotEmpty(t, record.SnapshotHash)
+			return nil
+		},
+		createLog: func(log *audit.AuditLog) error {
+			assert.Equal(t, "audit_investigation", log.Resource)
+			assert.Equal(t, "created", log.Action)
+			assert.Equal(t, "success", log.Status)
 			return nil
 		},
 	}
 
 	handler := audit.NewHandler(
 		audit.NewService(repo),
-		audit.NewInvestigatorService(repo, aiService),
+		audit.NewInvestigatorService(repo, aiService, audit.NewService(repo)),
 	)
 
 	gin.SetMode(gin.TestMode)
@@ -288,7 +307,7 @@ func TestAuditHandler_InvestigateLogs_DisabledAI(t *testing.T) {
 	repo := &stubAuditRepo{}
 	handler := audit.NewHandler(
 		audit.NewService(repo),
-		audit.NewInvestigatorService(repo, nil),
+		audit.NewInvestigatorService(repo, nil, audit.NewService(repo)),
 	)
 
 	gin.SetMode(gin.TestMode)
@@ -307,6 +326,81 @@ func TestAuditHandler_InvestigateLogs_DisabledAI(t *testing.T) {
 	bodyMap := decodeBodyMap(t, w)
 	assert.Equal(t, "error", bodyMap["status"])
 	assert.Equal(t, "ai investigator is not enabled", bodyMap["message"])
+}
+
+func TestAuditHandler_InvestigateLogs_ReusesExistingInvestigation(t *testing.T) {
+	aiService, err := aiModule.NewService(config.AIConfig{
+		Enabled:        true,
+		Provider:       "mock",
+		Model:          "mock-model",
+		TimeoutSeconds: 30,
+	})
+	assert.NoError(t, err)
+
+	repo := &stubAuditRepo{
+		findAllWithFilter: func(filter audit.Filter) ([]audit.AuditLog, int64, error) {
+			return []audit.AuditLog{
+				{
+					Model:       gorm.Model{ID: 10, CreatedAt: time.Date(2026, 4, 21, 10, 0, 0, 0, time.UTC)},
+					Action:      "login",
+					Resource:    "auth",
+					Status:      "failed",
+					Description: "invalid credentials",
+					IPAddress:   "203.0.113.1",
+				},
+			}, 1, nil
+		},
+		findBySnapshot: func(createdByUserID *uint, snapshotHash string) (*audit.AuditInvestigation, error) {
+			assert.NotNil(t, createdByUserID)
+			assert.Equal(t, uint(9), *createdByUserID)
+			assert.NotEmpty(t, snapshotHash)
+			return &audit.AuditInvestigation{
+				Model:                 gorm.Model{ID: 88, CreatedAt: time.Date(2026, 4, 22, 4, 0, 0, 0, time.UTC)},
+				CreatedByUserID:       createdByUserID,
+				SnapshotHash:          snapshotHash,
+				Resource:              "auth",
+				Status:                "failed",
+				LogCount:              1,
+				Summary:               "existing summary",
+				TimelineJSON:          `["item 1"]`,
+				SuspiciousSignalsJSON: `["signal 1"]`,
+				RecommendationsJSON:   `["recommendation 1"]`,
+			}, nil
+		},
+		createLog: func(log *audit.AuditLog) error {
+			assert.Equal(t, "reused", log.Action)
+			assert.Equal(t, "audit_investigation", log.Resource)
+			return nil
+		},
+		createInvestigation: func(record *audit.AuditInvestigation) error {
+			t.Fatal("did not expect a new investigation to be created")
+			return nil
+		},
+	}
+
+	handler := audit.NewHandler(
+		audit.NewService(repo),
+		audit.NewInvestigatorService(repo, aiService, audit.NewService(repo)),
+	)
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(
+		http.MethodPost,
+		"/audit-logs/investigate",
+		strings.NewReader(`{"resource":"auth","status":"failed","limit":25}`),
+	)
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set("user_id", uint(9))
+
+	handler.InvestigateLogs(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	meta := bodyMap["meta"].(map[string]interface{})
+	assert.Equal(t, float64(88), meta["investigation_id"])
+	assert.Equal(t, true, meta["reused_existing"])
 }
 
 func TestAuditHandler_ListInvestigations_Success(t *testing.T) {
@@ -339,7 +433,7 @@ func TestAuditHandler_ListInvestigations_Success(t *testing.T) {
 
 	handler := audit.NewHandler(
 		audit.NewService(repo),
-		audit.NewInvestigatorService(repo, &aiModule.Service{}),
+		audit.NewInvestigatorService(repo, &aiModule.Service{}, audit.NewService(repo)),
 	)
 
 	gin.SetMode(gin.TestMode)
@@ -362,7 +456,7 @@ func TestAuditHandler_ListInvestigations_Success(t *testing.T) {
 func TestAuditHandler_ListInvestigations_InvalidDateRange(t *testing.T) {
 	handler := audit.NewHandler(
 		audit.NewService(&stubAuditRepo{}),
-		audit.NewInvestigatorService(&stubAuditRepo{}, &aiModule.Service{}),
+		audit.NewInvestigatorService(&stubAuditRepo{}, &aiModule.Service{}, audit.NewService(&stubAuditRepo{})),
 	)
 
 	gin.SetMode(gin.TestMode)
@@ -396,7 +490,7 @@ func TestAuditHandler_GetInvestigationByID_Success(t *testing.T) {
 
 	handler := audit.NewHandler(
 		audit.NewService(repo),
-		audit.NewInvestigatorService(repo, &aiModule.Service{}),
+		audit.NewInvestigatorService(repo, &aiModule.Service{}, audit.NewService(repo)),
 	)
 
 	gin.SetMode(gin.TestMode)

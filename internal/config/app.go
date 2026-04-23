@@ -21,11 +21,12 @@ type SocialConfig struct {
 }
 
 type AIConfig struct {
-	Enabled  bool
-	Provider string
-	Model    string
-	BaseURL  string
-	APIKey   string
+	Enabled        bool
+	Provider       string
+	Model          string
+	BaseURL        string
+	APIKey         string
+	TimeoutSeconds int
 }
 
 type AppConfig struct {
@@ -65,11 +66,12 @@ func LoadAppConfig() AppConfig {
 			AppleClientID:     GetEnv("APPLE_CLIENT_ID", ""),
 		},
 		AI: AIConfig{
-			Enabled:  envBool("AI_ENABLED"),
-			Provider: strings.ToLower(GetEnv("AI_PROVIDER", "mock")),
-			Model:    GetEnv("AI_MODEL", "qwen2.5:3b"),
-			BaseURL:  GetEnv("AI_BASE_URL", "http://localhost:11434"),
-			APIKey:   GetEnv("AI_API_KEY", ""),
+			Enabled:        envBool("AI_ENABLED"),
+			Provider:       strings.ToLower(GetEnv("AI_PROVIDER", "mock")),
+			Model:          GetEnv("AI_MODEL", "qwen2.5:3b"),
+			BaseURL:        GetEnv("AI_BASE_URL", "http://localhost:11434"),
+			APIKey:         GetEnv("AI_API_KEY", ""),
+			TimeoutSeconds: envInt("AI_TIMEOUT_SECONDS", 30),
 		},
 	}
 }
@@ -107,6 +109,10 @@ func (c AppConfig) Validate() error {
 	}
 
 	if c.AI.Enabled {
+		if c.AI.TimeoutSeconds < 1 {
+			problems = append(problems, "AI_TIMEOUT_SECONDS must be greater than 0 when AI is enabled")
+		}
+
 		switch c.AI.Provider {
 		case "mock":
 		case "ollama":
@@ -151,6 +157,19 @@ func envList(key string, fallback []string) []string {
 		return append([]string(nil), fallback...)
 	}
 	return items
+}
+
+func envInt(key string, fallback int) int {
+	value := strings.TrimSpace(GetEnv(key, ""))
+	if value == "" {
+		return fallback
+	}
+
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }
 
 func firstNonEmptyEnv(keys ...string) string {

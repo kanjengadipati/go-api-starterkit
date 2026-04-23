@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -36,10 +37,10 @@ var (
 	ErrOllamaModelMissing = errors.New("ollama model is not available")
 )
 
-func NewOllamaProvider(baseURL string) *OllamaProvider {
+func NewOllamaProvider(baseURL string, timeout time.Duration) *OllamaProvider {
 	return &OllamaProvider{
 		baseURL: normalizeBaseURL(baseURL),
-		client:  &http.Client{Timeout: 30 * time.Second},
+		client:  &http.Client{Timeout: timeout},
 	}
 }
 
@@ -63,6 +64,13 @@ func (p *OllamaProvider) Generate(ctx context.Context, input GenerateInput) (*Ge
 
 	resp, err := p.client.Do(req)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("%w: %v", ErrTimeout, err)
+		}
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			return nil, fmt.Errorf("%w: %v", ErrTimeout, err)
+		}
 		return nil, fmt.Errorf("%w: %v", ErrOllamaUnavailable, err)
 	}
 	defer resp.Body.Close()

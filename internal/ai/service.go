@@ -3,11 +3,14 @@ package ai
 import (
 	"context"
 	"errors"
+	"time"
 
 	"go-api-starterkit/internal/config"
 )
 
 var ErrDisabled = errors.New("ai is disabled")
+var ErrTimeout = errors.New("ai request timed out")
+var ErrInvalidStructuredOutput = errors.New("ai returned an invalid structured response")
 
 type Service struct {
 	enabled      bool
@@ -31,7 +34,7 @@ func NewService(cfg config.AIConfig) (*Service, error) {
 	case "mock":
 		service.provider = NewMockProvider()
 	case "ollama":
-		service.provider = NewOllamaProvider(cfg.BaseURL)
+		service.provider = NewOllamaProvider(cfg.BaseURL, time.Duration(cfg.TimeoutSeconds)*time.Second)
 	default:
 		return nil, errors.New("unsupported ai provider")
 	}

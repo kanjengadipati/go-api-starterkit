@@ -1,10 +1,12 @@
 package audit
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
+	"go-api-starterkit/internal/ai"
 	"go-api-starterkit/internal/httpx"
 
 	"github.com/gin-gonic/gin"
@@ -81,11 +83,15 @@ func (h *Handler) InvestigateLogs(c *gin.Context) {
 
 	result, logs, err := h.AIService.Investigate(c.Request.Context(), filter)
 	if err != nil {
-		switch err.Error() {
-		case "ai investigator is not enabled":
+		switch {
+		case err.Error() == "ai investigator is not enabled":
 			httpx.Error(c, 503, err.Error())
-		case "no audit logs found for investigation":
+		case err.Error() == "no audit logs found for investigation":
 			httpx.Error(c, 404, err.Error())
+		case errors.Is(err, ai.ErrTimeout):
+			httpx.Error(c, 504, "ai investigation timed out")
+		case errors.Is(err, ai.ErrInvalidStructuredOutput):
+			httpx.Error(c, 502, "ai returned an invalid structured response")
 		default:
 			httpx.Error(c, 500, err.Error())
 		}
@@ -93,15 +99,18 @@ func (h *Handler) InvestigateLogs(c *gin.Context) {
 	}
 
 	var investigationID uint
-	if saved, err := h.AIService.SaveInvestigation(currentUserID(c), filter, result, logs); err != nil {
+	reusedExisting := false
+	if saved, reused, err := h.AIService.SaveInvestigation(currentUserID(c), filter, result, logs, c.ClientIP(), c.Request.UserAgent()); err != nil {
 		httpx.Error(c, 500, "Failed to save audit investigation")
 		return
 	} else if saved != nil {
 		investigationID = saved.ID
+		reusedExisting = reused
 	}
 
 	httpx.Success(c, 200, "Audit investigation completed", result, gin.H{
 		"investigation_id": investigationID,
+		"reused_existing":  reusedExisting,
 		"log_count":        len(logs),
 		"limit":            filter.Limit,
 		"resource":         filter.Resource,

@@ -188,6 +188,7 @@ For quick local testing without a real model:
 AI_ENABLED=true
 AI_PROVIDER=mock
 AI_MODEL=mock-model
+AI_TIMEOUT_SECONDS=30
 ```
 
 For real local AI with Ollama:
@@ -197,6 +198,7 @@ AI_ENABLED=true
 AI_PROVIDER=ollama
 AI_MODEL=qwen2.5:3b
 AI_BASE_URL=http://localhost:11434
+AI_TIMEOUT_SECONDS=30
 ```
 
 Then make sure Ollama is running and the model is available:
@@ -210,6 +212,7 @@ Common failures:
 - `ai investigator is not enabled`: `AI_ENABLED` is still false or the app was not restarted.
 - `ollama is unavailable`: Ollama is not running or `AI_BASE_URL` is wrong.
 - `ollama model is not available`: run `ollama pull <model>` first.
+- `ai investigation timed out`: increase `AI_TIMEOUT_SECONDS` or use a smaller/faster local model.
 
 ### AI Audit Logs Flow
 
@@ -220,6 +223,12 @@ Typical admin flow:
 3. Send the same filter scope to `POST /auth/admin/audit-logs/investigate`
 4. Review the generated summary and recommendations
 5. Re-open saved investigation history from `GET /auth/admin/audit-logs/investigations`
+
+Notes:
+- identical requests from the same admin over the same selected log snapshot are deduplicated and return the existing saved investigation
+- the server applies a hard cap to the AI investigation window to avoid overly large prompts
+- larger investigation windows are compressed into chunk summaries before being sent to the model, so prompt size stays more stable on local AI providers
+- creating or reusing an audit investigation is itself written into the audit log trail
 
 The `POST /auth/admin/audit-logs/investigate` request accepts:
 
