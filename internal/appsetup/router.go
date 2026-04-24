@@ -44,6 +44,7 @@ func BuildRouter(db *gorm.DB, cfg config.AppConfig, jwtService *services.JWTServ
 	if err := router.SetTrustedProxies(cfg.TrustedProxies); err != nil {
 		return nil, err
 	}
+	router.Use(middleware.CORS(cfg.CORSAllowedOrigins))
 	router.Use(middleware.RequestID())
 	router.Use(middleware.StructuredLogger())
 	router.Use(middleware.RecoveryLogger())

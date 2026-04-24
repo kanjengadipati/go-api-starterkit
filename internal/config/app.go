@@ -30,29 +30,31 @@ type AIConfig struct {
 }
 
 type AppConfig struct {
-	Port              string
-	DatabaseURL       string
-	TrustedProxies    []string
-	JWTSecret         []byte
-	AdminEmail        string
-	AdminPassword     string
-	AutoRunMigrations bool
-	AutoRunSeeds      bool
-	Email             EmailConfig
-	Social            SocialConfig
-	AI                AIConfig
+	Port               string
+	DatabaseURL        string
+	TrustedProxies     []string
+	CORSAllowedOrigins []string
+	JWTSecret          []byte
+	AdminEmail         string
+	AdminPassword      string
+	AutoRunMigrations  bool
+	AutoRunSeeds       bool
+	Email              EmailConfig
+	Social             SocialConfig
+	AI                 AIConfig
 }
 
 func LoadAppConfig() AppConfig {
 	return AppConfig{
-		Port:              GetEnv("PORT", "8080"),
-		DatabaseURL:       GetEnv("DATABASE_URL", ""),
-		TrustedProxies:    envList("TRUSTED_PROXIES", []string{"127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}),
-		JWTSecret:         []byte(GetEnv("JWT_SECRET", "")),
-		AdminEmail:        GetEnv("ADMIN_EMAIL", ""),
-		AdminPassword:     GetEnv("ADMIN_PASSWORD", ""),
-		AutoRunMigrations: envBool("AUTO_RUN_MIGRATIONS"),
-		AutoRunSeeds:      envBool("AUTO_RUN_SEEDS"),
+		Port:               GetEnv("PORT", "8080"),
+		DatabaseURL:        GetEnv("DATABASE_URL", ""),
+		TrustedProxies:     envList("TRUSTED_PROXIES", []string{"127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}),
+		CORSAllowedOrigins: corsAllowedOrigins(),
+		JWTSecret:          []byte(GetEnv("JWT_SECRET", "")),
+		AdminEmail:         GetEnv("ADMIN_EMAIL", ""),
+		AdminPassword:      GetEnv("ADMIN_PASSWORD", ""),
+		AutoRunMigrations:  envBool("AUTO_RUN_MIGRATIONS"),
+		AutoRunSeeds:       envBool("AUTO_RUN_SEEDS"),
 		Email: EmailConfig{
 			APIKey:      GetEnv("SENDGRID_API_KEY", ""),
 			From:        GetEnv("SENDGRID_EMAIL", ""),
@@ -198,4 +200,17 @@ func firstNonEmptyEnv(keys ...string) string {
 		}
 	}
 	return last
+}
+
+func corsAllowedOrigins() []string {
+	defaults := []string{
+		"http://localhost:3000",
+		"http://127.0.0.1:3000",
+	}
+
+	if frontendURL := strings.TrimSpace(GetEnv("FRONTEND_URL", "")); frontendURL != "" {
+		defaults = append([]string{frontendURL}, defaults...)
+	}
+
+	return envList("CORS_ALLOWED_ORIGINS", defaults)
 }
