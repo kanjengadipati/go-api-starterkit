@@ -9,23 +9,23 @@ import (
 
 type AuditInvestigation struct {
 	gorm.Model
-	CreatedByUserID       *uint      `json:"created_by_user_id"`
-	SnapshotHash          string     `json:"-"`
-	Action                string     `json:"action"`
-	Resource              string     `json:"resource"`
-	Status                string     `json:"status"`
-	ActorUserID           *uint      `json:"actor_user_id"`
-	Search                string     `json:"search"`
-	DateFrom              *time.Time `json:"date_from"`
-	DateTo                *time.Time `json:"date_to"`
-	LimitValue            int        `json:"limit"`
-	LogCount              int        `json:"log_count"`
-	AIProvider            string     `json:"ai_provider"`
-	AIModel               string     `json:"ai_model"`
-	Summary               string     `json:"summary"`
-	TimelineJSON          string     `json:"-"`
-	SuspiciousSignalsJSON string     `json:"-"`
-	RecommendationsJSON   string     `json:"-"`
+	CreatedByUserID       *uint      `json:"created_by_user_id" gorm:"column:created_by_user_id"`
+	SnapshotHash          string     `json:"-" gorm:"column:snapshot_hash"`
+	Action                string     `json:"action" gorm:"column:action"`
+	Resource              string     `json:"resource" gorm:"column:resource"`
+	Status                string     `json:"status" gorm:"column:status"`
+	ActorUserID           *uint      `json:"actor_user_id" gorm:"column:actor_user_id"`
+	Search                string     `json:"search" gorm:"column:search"`
+	DateFrom              *time.Time `json:"date_from" gorm:"column:date_from"`
+	DateTo                *time.Time `json:"date_to" gorm:"column:date_to"`
+	LimitValue            int        `json:"limit" gorm:"column:limit_value"`
+	LogCount              int        `json:"log_count" gorm:"column:log_count"`
+	AIProvider            string     `json:"ai_provider" gorm:"column:ai_provider"`
+	AIModel               string     `json:"ai_model" gorm:"column:ai_model"`
+	Summary               string     `json:"summary" gorm:"column:summary"`
+	TimelineJSON          string     `json:"-" gorm:"column:timeline_json"`
+	SuspiciousSignalsJSON string     `json:"-" gorm:"column:suspicious_signals_json"`
+	RecommendationsJSON   string     `json:"-" gorm:"column:recommendations_json"`
 }
 
 func (AuditInvestigation) TableName() string {

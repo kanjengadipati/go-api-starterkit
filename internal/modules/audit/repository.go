@@ -55,7 +55,14 @@ func (r *gormRepository) Create(log *AuditLog) error {
 }
 
 func (r *gormRepository) CreateInvestigation(record *AuditInvestigation) error {
-	return r.db.Create(record).Error
+	err := r.db.Create(record).Error
+	if isMissingSnapshotHashColumnError(err) {
+		// Backward-compatible fallback for databases that have not applied
+		// the snapshot-hash migration yet. This disables dedupe but still
+		// lets the investigation be saved.
+		return r.db.Omit("SnapshotHash").Create(record).Error
+	}
+	return err
 }
 
 func (r *gormRepository) FindLatestInvestigationBySnapshot(createdByUserID *uint, snapshotHash string) (*AuditInvestigation, error) {
@@ -69,6 +76,11 @@ func (r *gormRepository) FindLatestInvestigationBySnapshot(createdByUserID *uint
 	}
 
 	if err := query.Order("created_at DESC").First(&item).Error; err != nil {
+		if isMissingSnapshotHashColumnError(err) {
+			// If the column does not exist yet, treat it as "no reusable record"
+			// so investigation creation can proceed without dedupe.
+			return nil, gorm.ErrRecordNotFound
+		}
 		return nil, err
 	}
 	return &item, nil
@@ -196,4 +208,16 @@ func (r *gormRepository) applyInvestigationFilter(query *gorm.DB, filter Investi
 		)
 	}
 	return query
+}
+
+func isMissingSnapshotHashColumnError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "snapshot_hash") &&
+		(strings.Contains(message, "column") ||
+			strings.Contains(message, "unknown column") ||
+			strings.Contains(message, "does not exist"))
 }
