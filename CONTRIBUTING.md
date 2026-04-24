@@ -26,7 +26,7 @@ go run ./cmd/seed
 3. Start the app:
 
 ```bash
-go run .
+go run ./cmd/api
 ```
 
 Or use Docker:

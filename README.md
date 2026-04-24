@@ -103,13 +103,10 @@ go test ./...
 │   └── services/     # shared services (jwt, email, ai)
 ├── migrations/       # SQL migrations
 ├── postman/          # manual API testing assets
-├── tests/            # tests and mocks
-└── main.go           # compatibility entrypoint
+└── tests/            # tests and mocks
 ```
 
 Each module owns its own handler, service, repository, and model — keeping domain logic isolated and easy to navigate.
-
-Container builds use `./cmd/api` as the primary API entrypoint. The repository-root `main.go` remains as a compatibility entrypoint for simple local builds.
 
 ---
 
@@ -385,8 +382,6 @@ go run ./cmd/api
 ```
 
 The API will be available at `http://localhost:8080`. The app respects the `PORT` environment variable automatically.
-
-> `go run .` still works but `go run ./cmd/api` is the recommended entrypoint.
 
 ---
 
