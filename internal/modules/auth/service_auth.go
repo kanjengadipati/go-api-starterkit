@@ -141,6 +141,10 @@ func (s *authService) GetProfile(userID uint) (*userModule.User, error) {
 	return s.UserRepo.FindByID(userID)
 }
 
+func (s *authService) GetPermissions(roleID uint) ([]string, error) {
+	return s.PermissionSvc.Repo.ListRolePermissions(roleID)
+}
+
 func (s *authService) issueTokens(userID uint, role, deviceID, userAgent, ipAddress string) (*AuthTokens, error) {
 	accessToken, err := s.JWT.GenerateToken(userID, role, 15*time.Minute, TokenAccess)
 	if err != nil {

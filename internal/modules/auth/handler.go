@@ -202,11 +202,14 @@ func (h *AuthHandler) Profile(c *gin.Context) {
 		return
 	}
 
+	permissions, _ := h.AuthService.GetPermissions(user.RoleID)
+
 	utils.Success(c, http.StatusOK, "Profile fetched", gin.H{
-		"id":    user.ID,
-		"name":  user.Name,
-		"email": user.Email,
-		"role":  user.Role,
+		"id":          user.ID,
+		"name":        user.Name,
+		"email":       user.Email,
+		"role":        user.Role,
+		"permissions": permissions,
 	}, nil)
 }
 

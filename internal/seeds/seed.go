@@ -41,6 +41,7 @@ func SeedPermissions(db *gorm.DB) map[string]permissionModule.Permission {
 	mustHaveDB(db)
 
 	permNames := []string{
+		"dashboard.view",
 		"user.read_all",
 		"user.read",
 		"user.create",
@@ -51,6 +52,8 @@ func SeedPermissions(db *gorm.DB) map[string]permissionModule.Permission {
 		"role.read",
 		"permission.read",
 		"role.update_permissions",
+		"session.read",
+		"session.delete",
 	}
 	permMap := make(map[string]permissionModule.Permission)
 
@@ -73,6 +76,7 @@ func SeedRolePermissions(db *gorm.DB) {
 
 	rolePermissions := map[string][]string{
 		"admin": {
+			"dashboard.view",
 			"user.read_all",
 			"user.read",
 			"user.create",
@@ -83,8 +87,13 @@ func SeedRolePermissions(db *gorm.DB) {
 			"role.read",
 			"permission.read",
 			"role.update_permissions",
+			"session.read",
+			"session.delete",
 		},
-		"user": {},
+		"user": {
+			"dashboard.view",
+			"session.read",
+		},
 	}
 
 	for roleName, permissions := range rolePermissions {

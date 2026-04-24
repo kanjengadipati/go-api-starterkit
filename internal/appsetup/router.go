@@ -27,7 +27,7 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtSe
 	roleModule := role.BuildModule(db)
 	auditModule := audit.BuildModule(db, aiService)
 	userModule := user.BuildModule(db, auditModule.Service)
-	authModule := auth.BuildModule(db, cfg, userModule.Service, jwtService, auditModule.Service)
+	authModule := auth.BuildModule(db, cfg, userModule.Service, jwtService, auditModule.Service, permissionModule.Service)
 
 	auth.SetupRoutes(api, authModule.Handler, jwtService)
 	user.SetupRoutes(api, userModule.Handler, jwtService, permissionModule.Service)

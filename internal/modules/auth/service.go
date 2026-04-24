@@ -3,6 +3,7 @@ package auth
 import (
 	"go-api-starterkit/internal/config"
 	"go-api-starterkit/internal/modules/audit"
+	"go-api-starterkit/internal/modules/permission"
 	permissionless "go-api-starterkit/internal/modules/social"
 	tokenModule "go-api-starterkit/internal/modules/token"
 	userModule "go-api-starterkit/internal/modules/user"
@@ -27,6 +28,7 @@ type AuthService interface {
 	ForgotPassword(email string) error
 	ResetPassword(token string, newPassword string) error
 	SocialLogin(provider string, idToken string, deviceID, userAgent, ipAddress string) (*AuthTokens, error)
+	GetPermissions(roleID uint) ([]string, error)
 }
 
 type authService struct {
@@ -38,6 +40,7 @@ type authService struct {
 	JWT                   *services.JWTService
 	EmailSvc              services.EmailService
 	AuditSvc              *audit.Service
+	PermissionSvc         *permission.Service
 	SocialCfg             config.SocialConfig
 }
 
@@ -64,7 +67,7 @@ const (
 	TokenRefresh = "refresh"
 )
 
-func NewService(db *gorm.DB, cfg config.AppConfig, _ *userModule.Service, jwtService *services.JWTService, auditSvc *audit.Service) AuthService {
+func NewService(db *gorm.DB, cfg config.AppConfig, _ *userModule.Service, jwtService *services.JWTService, auditSvc *audit.Service, permissionSvc *permission.Service) AuthService {
 	userRepo := userModule.NewRepository(db)
 	refreshTokenRepo := tokenModule.NewRefreshTokenRepository(db)
 	emailVerificationRepo := tokenModule.NewEmailVerificationRepository(db)
@@ -80,6 +83,7 @@ func NewService(db *gorm.DB, cfg config.AppConfig, _ *userModule.Service, jwtSer
 		jwtService,
 		emailSvc,
 		auditSvc,
+		permissionSvc,
 		cfg.Social,
 	)
 }
@@ -93,6 +97,7 @@ func NewAuthService(
 	jwt *services.JWTService,
 	emailSvc services.EmailService,
 	auditSvc *audit.Service,
+	permissionSvc *permission.Service,
 	socialCfg config.SocialConfig,
 ) AuthService {
 	return &authService{
@@ -104,6 +109,7 @@ func NewAuthService(
 		JWT:                   jwt,
 		EmailSvc:              emailSvc,
 		AuditSvc:              auditSvc,
+		PermissionSvc:         permissionSvc,
 		SocialCfg:             socialCfg,
 	}
 }
