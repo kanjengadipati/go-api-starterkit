@@ -51,6 +51,10 @@ This project provides a complete authentication and authorization foundation bui
 | AI | Ollama (optional) |
 | Infrastructure | Docker, Nginx, Redis |
 
+## Architecture
+
+![Architecture](docs/architecture.svg)
+
 ### Go toolchain
 
 `go.mod` declares **Go 1.25** because `go mod tidy` pulls that floor from transitive modules (for example `golang.org/x/oauth2`, `golang.org/x/sys`, and related `golang.org/x/*` releases used by Google APIs and the rest of the graph). Install a [supported Go toolchain](https://go.dev/dl/) that satisfies the `go` line before running `go test` or `go build`. If you must target an older Go release, you will need to fork and pin older `golang.org/x/*` (and possibly trim Google social-login dependencies)—that is not supported in this template out of the box.

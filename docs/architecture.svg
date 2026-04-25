@@ -1,0 +1,134 @@
+<svg width="100%" viewBox="0 0 680 590" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>Go API Starterkit — architecture</title>
+  <desc>Layered architecture: Client → Nginx (optional) → Gin API → modules (auth, user, audit, role/permission) → services (JWT, email, AI provider) → infrastructure (PostgreSQL, Redis).</desc>
+
+  <style>
+    text { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    .th  { font-size: 13px; font-weight: 600; fill: #1e1b4b; }
+    .ts  { font-size: 11px; font-weight: 400; fill: #534AB7; }
+    .tg  { font-size: 13px; font-weight: 600; fill: #1c2b1a; }
+    .tgs { font-size: 11px; font-weight: 400; fill: #3B6D11; }
+    .tc  { font-size: 13px; font-weight: 600; fill: #1a2b2a; }
+    .tcs { font-size: 11px; font-weight: 400; fill: #0F6E56; }
+    .tn  { font-size: 13px; font-weight: 600; fill: #2c2c2a; }
+    .tns { font-size: 11px; font-weight: 400; fill: #5F5E5A; }
+    .legend { font-size: 11px; font-weight: 400; fill: #5F5E5A; }
+
+    .box-purple { fill: #EEEDFE; stroke: #534AB7; stroke-width: 0.5; }
+    .box-teal   { fill: #E1F5EE; stroke: #0F6E56; stroke-width: 0.5; }
+    .box-gray   { fill: #F1EFE8; stroke: #5F5E5A; stroke-width: 0.5; }
+    .arr        { stroke: #888780; stroke-width: 0.5; fill: none; }
+
+    @media (prefers-color-scheme: dark) {
+      .th  { fill: #CECBF6; }
+      .ts  { fill: #AFA9EC; }
+      .tg  { fill: #C0DD97; }
+      .tgs { fill: #97C459; }
+      .tc  { fill: #9FE1CB; }
+      .tcs { fill: #5DCAA5; }
+      .tn  { fill: #D3D1C7; }
+      .tns { fill: #B4B2A9; }
+      .legend { fill: #888780; }
+
+      .box-purple { fill: #3C3489; stroke: #AFA9EC; }
+      .box-teal   { fill: #085041; stroke: #5DCAA5; }
+      .box-gray   { fill: #444441; stroke: #B4B2A9; }
+      .arr        { stroke: #888780; }
+    }
+  </style>
+
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- Client -->
+  <rect x="270" y="40" width="140" height="44" rx="8" class="box-gray"/>
+  <text x="340" y="62" text-anchor="middle" dominant-baseline="central" class="tn">Client</text>
+
+  <line x1="340" y1="84" x2="340" y2="108" class="arr" marker-end="url(#arr)"/>
+
+  <!-- Nginx -->
+  <rect x="220" y="112" width="240" height="44" rx="8" class="box-gray"/>
+  <text x="340" y="128" text-anchor="middle" dominant-baseline="central" class="tn">Nginx</text>
+  <text x="340" y="145" text-anchor="middle" dominant-baseline="central" class="tns">optional gateway · rate limiting</text>
+
+  <line x1="340" y1="156" x2="340" y2="180" class="arr" marker-end="url(#arr)"/>
+
+  <!-- Gin API -->
+  <rect x="60" y="184" width="560" height="54" rx="8" class="box-purple"/>
+  <text x="340" y="204" text-anchor="middle" dominant-baseline="central" class="th">Gin API</text>
+  <text x="340" y="222" text-anchor="middle" dominant-baseline="central" class="ts">CORS · auth middleware · rate limiting · security headers · structured logging</text>
+
+  <!-- arrows down from API bar -->
+  <line x1="160" y1="238" x2="160" y2="270" class="arr" marker-end="url(#arr)"/>
+  <line x1="295" y1="238" x2="295" y2="270" class="arr" marker-end="url(#arr)"/>
+  <line x1="430" y1="238" x2="430" y2="270" class="arr" marker-end="url(#arr)"/>
+  <line x1="555" y1="238" x2="555" y2="270" class="arr" marker-end="url(#arr)"/>
+
+  <!-- Module row: 4 boxes x=60,195,330,465 w=120 gap=15 -->
+  <!-- auth -->
+  <rect x="60" y="274" width="120" height="54" rx="8" class="box-purple"/>
+  <text x="120" y="294" text-anchor="middle" dominant-baseline="central" class="th">auth</text>
+  <text x="120" y="312" text-anchor="middle" dominant-baseline="central" class="ts">register · login · social</text>
+
+  <!-- user -->
+  <rect x="195" y="274" width="120" height="54" rx="8" class="box-purple"/>
+  <text x="255" y="294" text-anchor="middle" dominant-baseline="central" class="th">user</text>
+  <text x="255" y="312" text-anchor="middle" dominant-baseline="central" class="ts">profile · password</text>
+
+  <!-- audit -->
+  <rect x="330" y="274" width="120" height="54" rx="8" class="box-purple"/>
+  <text x="390" y="294" text-anchor="middle" dominant-baseline="central" class="th">audit</text>
+  <text x="390" y="312" text-anchor="middle" dominant-baseline="central" class="ts">logs · investigation</text>
+
+  <!-- role/permission -->
+  <rect x="465" y="274" width="155" height="54" rx="8" class="box-purple"/>
+  <text x="542" y="293" text-anchor="middle" dominant-baseline="central" class="th">role /</text>
+  <text x="542" y="310" text-anchor="middle" dominant-baseline="central" class="th">permission</text>
+
+  <!-- arrows down from modules to services -->
+  <line x1="160" y1="328" x2="160" y2="360" class="arr" marker-end="url(#arr)"/>
+  <line x1="340" y1="328" x2="340" y2="360" class="arr" marker-end="url(#arr)"/>
+  <line x1="510" y1="328" x2="510" y2="360" class="arr" marker-end="url(#arr)"/>
+
+  <!-- Services row: JWT x=60 w=170, email x=245 w=190, AI x=450 w=190 -->
+  <rect x="60" y="364" width="170" height="54" rx="8" class="box-teal"/>
+  <text x="145" y="384" text-anchor="middle" dominant-baseline="central" class="tc">JWT service</text>
+  <text x="145" y="402" text-anchor="middle" dominant-baseline="central" class="tcs">access · refresh · rotation</text>
+
+  <rect x="245" y="364" width="190" height="54" rx="8" class="box-teal"/>
+  <text x="340" y="384" text-anchor="middle" dominant-baseline="central" class="tc">email service</text>
+  <text x="340" y="402" text-anchor="middle" dominant-baseline="central" class="tcs">SendGrid · verify · reset</text>
+
+  <rect x="450" y="364" width="190" height="54" rx="8" class="box-teal"/>
+  <text x="545" y="384" text-anchor="middle" dominant-baseline="central" class="tc">AI provider</text>
+  <text x="545" y="402" text-anchor="middle" dominant-baseline="central" class="tcs">Ollama · OpenAI · Gemini</text>
+
+  <!-- arrows down to infra -->
+  <line x1="230" y1="418" x2="230" y2="450" class="arr" marker-end="url(#arr)"/>
+  <line x1="450" y1="418" x2="450" y2="450" class="arr" marker-end="url(#arr)"/>
+
+  <!-- Infra row: PostgreSQL x=60 w=310, Redis x=385 w=235 -->
+  <rect x="60" y="454" width="310" height="44" rx="8" class="box-gray"/>
+  <text x="215" y="476" text-anchor="middle" dominant-baseline="central" class="tn">PostgreSQL</text>
+
+  <rect x="385" y="454" width="255" height="44" rx="8" class="box-gray"/>
+  <text x="512" y="469" text-anchor="middle" dominant-baseline="central" class="tn">Redis</text>
+  <text x="512" y="486" text-anchor="middle" dominant-baseline="central" class="tns">rate limit store</text>
+
+  <!-- Legend -->
+  <rect x="60" y="522" width="10" height="10" rx="2" class="box-purple"/>
+  <text x="76" y="531" dominant-baseline="central" class="legend">business layer</text>
+
+  <rect x="180" y="522" width="10" height="10" rx="2" class="box-teal"/>
+  <text x="196" y="531" dominant-baseline="central" class="legend">shared services</text>
+
+  <rect x="310" y="522" width="10" height="10" rx="2" class="box-gray"/>
+  <text x="326" y="531" dominant-baseline="central" class="legend">infrastructure</text>
+
+  <line x1="430" y1="527" x2="460" y2="527" stroke="#888780" stroke-width="0.5" stroke-dasharray="4 3"/>
+  <text x="466" y="531" dominant-baseline="central" class="legend">optional component</text>
+
+</svg>
