@@ -7,6 +7,7 @@ import (
 
 	"go-api-starterkit/internal/modules/audit"
 	tokenModule "go-api-starterkit/internal/modules/token"
+	"go-api-starterkit/internal/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -30,7 +31,7 @@ func (s *authService) ResendVerification(email string) error {
 
 	verification := &tokenModule.EmailVerificationToken{
 		UserID:    user.ID,
-		Token:     token,
+		Token:     utils.HashToken(token),
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	}
 

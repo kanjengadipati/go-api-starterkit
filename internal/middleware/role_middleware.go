@@ -12,6 +12,9 @@ type permissionChecker interface {
 	HasPermission(roleName, permission string) (bool, error)
 }
 
+// AdminOnly gates routes on the literal JWT role claim "admin".
+// This codebase uses RequirePermission for admin APIs so RBAC stays in the database.
+// Keep AdminOnly for forks or internal routes that intentionally bypass permission rows.
 func AdminOnly() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role, exists := c.Get("role")
@@ -26,6 +29,9 @@ func AdminOnly() gin.HandlerFunc {
 	}
 }
 
+// RequireRole gates routes on a single role name from the JWT.
+// Prefer RequirePermission for admin surfaces; RequireRole is useful for coarse checks
+// (e.g. a dedicated operator role) when permission data is not needed.
 func RequireRole(role string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userRole, exists := c.Get("role")

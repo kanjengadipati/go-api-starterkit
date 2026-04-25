@@ -32,6 +32,7 @@ type AIConfig struct {
 type AppConfig struct {
 	Port               string
 	DatabaseURL        string
+	RedisURL           string
 	TrustedProxies     []string
 	CORSAllowedOrigins []string
 	JWTSecret          []byte
@@ -48,6 +49,7 @@ func LoadAppConfig() AppConfig {
 	return AppConfig{
 		Port:               GetEnv("PORT", "8080"),
 		DatabaseURL:        GetEnv("DATABASE_URL", ""),
+		RedisURL:           GetEnv("REDIS_URL", ""),
 		TrustedProxies:     envList("TRUSTED_PROXIES", []string{"127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}),
 		CORSAllowedOrigins: corsAllowedOrigins(),
 		JWTSecret:          []byte(GetEnv("JWT_SECRET", "")),

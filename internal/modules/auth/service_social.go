@@ -21,15 +21,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"google.golang.org/api/idtoken"
 	"gorm.io/gorm"
-	"sync"
-)
-
-var socialHTTPClient = &http.Client{Timeout: 10 * time.Second}
-
-var (
-	appleKeysCache     *appleJWKSet
-	appleKeysCacheTime time.Time
-	appleKeysMutex     sync.RWMutex
 )
 
 type socialProfile struct {
@@ -143,7 +134,7 @@ func (s *authService) SocialLogin(provider string, token string, deviceID, userA
 		}
 	}
 
-	tokens, err := s.issueTokens(user.ID, user.Role, deviceID, userAgent, ipAddress)
+	tokens, err := s.issueTokens(user.ID, user.Role, user.AccessTokenVersion, deviceID, userAgent, ipAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +209,7 @@ func (s *authService) validateFacebookToken(token string) (*socialProfile, error
 	}.Encode()
 
 	var debugResp facebookDebugResponse
-	if err := getJSON(debugURL, &debugResp); err != nil {
+	if err := s.getJSON(debugURL, &debugResp); err != nil {
 		return nil, err
 	}
 	if debugResp.Error != nil {
@@ -240,7 +231,7 @@ func (s *authService) validateFacebookToken(token string) (*socialProfile, error
 	}.Encode()
 
 	var userResp facebookUserResponse
-	if err := getJSON(userURL, &userResp); err != nil {
+	if err := s.getJSON(userURL, &userResp); err != nil {
 		return nil, err
 	}
 	if userResp.Error != nil {
@@ -271,7 +262,7 @@ func (s *authService) validateAppleToken(token string) (*socialProfile, error) {
 			return nil, errors.New("apple token missing kid")
 		}
 
-		return fetchApplePublicKey(kid)
+		return s.fetchApplePublicKey(kid)
 	})
 	if err != nil || !parsedToken.Valid {
 		return nil, errors.New("invalid apple token")
@@ -298,26 +289,25 @@ func (s *authService) validateAppleToken(token string) (*socialProfile, error) {
 	}, nil
 }
 
-func fetchApplePublicKey(kid string) (*ecdsa.PublicKey, error) {
-	appleKeysMutex.RLock()
-	cache := appleKeysCache
-	cacheTime := appleKeysCacheTime
-	appleKeysMutex.RUnlock()
+func (s *authService) fetchApplePublicKey(kid string) (*ecdsa.PublicKey, error) {
+	s.appleKeysMutex.RLock()
+	cache := s.appleKeysCache
+	cacheTime := s.appleKeysCacheTime
+	s.appleKeysMutex.RUnlock()
 
 	if cache == nil || time.Since(cacheTime) > 1*time.Hour {
-		appleKeysMutex.Lock()
-		// Double-check after acquiring lock
-		if appleKeysCache == nil || time.Since(appleKeysCacheTime) > 1*time.Hour {
+		s.appleKeysMutex.Lock()
+		if s.appleKeysCache == nil || time.Since(s.appleKeysCacheTime) > 1*time.Hour {
 			var newKeySet appleJWKSet
-			if err := getJSON("https://appleid.apple.com/auth/keys", &newKeySet); err != nil {
-				appleKeysMutex.Unlock()
+			if err := s.getJSON("https://appleid.apple.com/auth/keys", &newKeySet); err != nil {
+				s.appleKeysMutex.Unlock()
 				return nil, err
 			}
-			appleKeysCache = &newKeySet
-			appleKeysCacheTime = time.Now()
+			s.appleKeysCache = &newKeySet
+			s.appleKeysCacheTime = time.Now()
 		}
-		cache = appleKeysCache
-		appleKeysMutex.Unlock()
+		cache = s.appleKeysCache
+		s.appleKeysMutex.Unlock()
 	}
 
 	for _, key := range cache.Keys {
@@ -347,13 +337,13 @@ func fetchApplePublicKey(kid string) (*ecdsa.PublicKey, error) {
 	return nil, errors.New("matching apple public key not found")
 }
 
-func getJSON(rawURL string, target interface{}) error {
+func (s *authService) getJSON(rawURL string, target interface{}) error {
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, rawURL, nil)
 	if err != nil {
 		return err
 	}
 
-	resp, err := socialHTTPClient.Do(req)
+	resp, err := s.socialHTTPClient.Do(req)
 	if err != nil {
 		return err
 	}

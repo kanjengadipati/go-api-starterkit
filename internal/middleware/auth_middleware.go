@@ -54,10 +54,15 @@ func AuthMiddleware(jwtService *services.JWTService) gin.HandlerFunc {
 			return
 		}
 
-		// ✅ inject ke context
+		var accessTokenVersion uint
+		if tv, ok := claims["tv"].(float64); ok {
+			accessTokenVersion = uint(tv)
+		}
+
 		userID := uint(userIDValue)
 		c.Set("user_id", userID)
 		c.Set("role", roleValue)
+		c.Set("access_token_version", accessTokenVersion)
 
 		c.Next()
 	}

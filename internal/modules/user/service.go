@@ -80,13 +80,13 @@ func (s *Service) UpdateUser(id uint, input UpdateUserRequest) (*User, error) {
 	user.Role = input.Role
 	user.IsVerified = input.IsVerified
 
-	if err := s.UserRepo.Update(user); err != nil {
-		return nil, err
+	if oldRole != user.Role {
+		user.AccessTokenVersion++
+		_ = s.RefreshTokenRepo.DeleteByUser(user.ID)
 	}
 
-	// If role changed, revoke all sessions to prevent stale role in JWT
-	if oldRole != user.Role {
-		_ = s.RefreshTokenRepo.DeleteByUser(user.ID)
+	if err := s.UserRepo.Update(user); err != nil {
+		return nil, err
 	}
 
 	return user, nil
@@ -123,6 +123,7 @@ func (s *Service) ChangePassword(id uint, currentPassword, newPassword string) e
 
 	user.Password = hashedPassword
 	user.PasswordUpdatedAt = time.Now()
+	user.AccessTokenVersion++
 
 	return s.UserRepo.Update(user)
 }

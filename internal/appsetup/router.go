@@ -29,10 +29,12 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtSe
 	userModule := user.BuildModule(db, auditModule.Service)
 	authModule := auth.BuildModule(db, cfg, userModule.Service, jwtService, auditModule.Service, permissionModule.Service)
 
-	auth.SetupRoutes(api, authModule.Handler, jwtService)
-	user.SetupRoutes(api, userModule.Handler, jwtService, permissionModule.Service)
-	audit.SetupRoutes(api, auditModule.Handler, jwtService, permissionModule.Service)
-	role.SetupRoutes(api, roleModule.Handler, jwtService, permissionModule.Service)
+	rateStore := newRateLimitStore(cfg.RedisURL)
+	tokenVersionSrc := accessTokenVersionAdapter{repo: userModule.Repository}
+	auth.SetupRoutes(api, authModule.Handler, jwtService, rateStore)
+	user.SetupRoutes(api, userModule.Handler, jwtService, permissionModule.Service, tokenVersionSrc)
+	audit.SetupRoutes(api, auditModule.Handler, jwtService, permissionModule.Service, tokenVersionSrc)
+	role.SetupRoutes(api, roleModule.Handler, jwtService, permissionModule.Service, tokenVersionSrc)
 	router.GET("/health", func(c *gin.Context) {
 		httpx.Success(c, 200, "Health check ok", gin.H{"status": "ok"}, nil)
 	})

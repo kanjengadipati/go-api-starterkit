@@ -104,12 +104,16 @@ func SeedRolePermissions(db *gorm.DB) {
 		}
 
 		for _, permission := range permissions {
-			values := map[string]interface{}{
-				"role_id":    role.ID,
-				"permission": permission,
+			type rolePermissionRow struct {
+				ID         uint   `gorm:"column:id"`
+				RoleID     uint   `gorm:"column:role_id"`
+				Permission string `gorm:"column:permission"`
 			}
 
-			if err := db.Table("role_permissions").Where(values).FirstOrCreate(values).Error; err != nil {
+			row := rolePermissionRow{RoleID: role.ID, Permission: permission}
+			if err := db.Table("role_permissions").
+				Where("role_id = ? AND permission = ?", role.ID, permission).
+				FirstOrCreate(&row).Error; err != nil {
 				log.Printf("Failed to seed role permission %s -> %s: %v", roleName, permission, err)
 			}
 		}

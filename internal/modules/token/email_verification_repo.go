@@ -1,6 +1,12 @@
 package token
 
-import "gorm.io/gorm"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"strings"
+
+	"gorm.io/gorm"
+)
 
 type EmailVerificationRepository interface {
 	Create(token *EmailVerificationToken) error
@@ -24,9 +30,15 @@ func (r *GormEmailVerificationRepository) Create(token *EmailVerificationToken) 
 	return r.db.Create(token).Error
 }
 
-func (r *GormEmailVerificationRepository) FindByToken(token string) (*EmailVerificationToken, error) {
+func hashEmailVerificationToken(plain string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(plain)))
+	return hex.EncodeToString(sum[:])
+}
+
+func (r *GormEmailVerificationRepository) FindByToken(plainToken string) (*EmailVerificationToken, error) {
 	var verification EmailVerificationToken
-	if err := r.db.Where("token = ?", token).First(&verification).Error; err != nil {
+	hash := hashEmailVerificationToken(plainToken)
+	if err := r.db.Where("token = ?", hash).First(&verification).Error; err != nil {
 		return nil, err
 	}
 

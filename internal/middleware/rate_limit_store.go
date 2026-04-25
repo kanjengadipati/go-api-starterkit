@@ -11,8 +11,8 @@ type RateLimitStore interface {
 
 // InMemoryRateLimitStore is suitable for a single app instance ONLY.
 // WARNING: This implementation is NOT suitable for multi-instance/distributed deployments
-// as rate limits are not shared across instances. Swapping this with a shared store 
-// like Redis is highly recommended for production scale.
+// as rate limits are not shared across instances. With REDIS_URL set, appsetup.newRateLimitStore
+// wires a Redis-backed implementation instead; see internal/appsetup/rate_limit_store.go.
 type InMemoryRateLimitStore struct {
 	mu      sync.Mutex
 	entries map[string]rateLimitEntry

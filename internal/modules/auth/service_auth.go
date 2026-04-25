@@ -36,7 +36,7 @@ func (s *authService) Register(user *userModule.User, password string) error {
 
 		verificationRecord := &tokenModule.EmailVerificationToken{
 			UserID:    user.ID,
-			Token:     verificationToken,
+			Token:     utils.HashToken(verificationToken),
 			ExpiresAt: time.Now().Add(24 * time.Hour),
 			CreatedAt: time.Now(),
 		}
@@ -105,7 +105,7 @@ func (s *authService) Login(email, password, deviceID, userAgent, ipAddress stri
 		return nil, ErrEmailNotVerified
 	}
 
-	tokens, err := s.issueTokens(user.ID, user.Role, deviceID, userAgent, ipAddress)
+	tokens, err := s.issueTokens(user.ID, user.Role, user.AccessTokenVersion, deviceID, userAgent, ipAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -128,13 +128,13 @@ func (s *authService) GetProfile(userID uint) (*userModule.User, error) {
 	return s.UserRepo.FindByID(userID)
 }
 
-func (s *authService) issueTokens(userID uint, role, deviceID, userAgent, ipAddress string) (*AuthTokens, error) {
-	accessToken, err := s.JWT.GenerateToken(userID, role, 15*time.Minute, TokenAccess)
+func (s *authService) issueTokens(userID uint, role string, accessTokenVersion uint, deviceID, userAgent, ipAddress string) (*AuthTokens, error) {
+	accessToken, err := s.JWT.GenerateToken(userID, role, 10*time.Minute, TokenAccess, accessTokenVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := s.JWT.GenerateToken(userID, role, 7*24*time.Hour, TokenRefresh)
+	refreshToken, err := s.JWT.GenerateToken(userID, role, 7*24*time.Hour, TokenRefresh, accessTokenVersion)
 	if err != nil {
 		return nil, err
 	}

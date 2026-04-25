@@ -8,13 +8,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(api *gin.RouterGroup, handler *AuthHandler, jwtService *services.JWTService) {
+func SetupRoutes(api *gin.RouterGroup, handler *AuthHandler, jwtService *services.JWTService, rateStore middleware.RateLimitStore) {
 	auth := api.Group("/auth")
-	loginLimiter := middleware.NewRateLimiter(5, time.Minute)
-	registerLimiter := middleware.NewRateLimiter(5, time.Minute)
-	passwordLimiter := middleware.NewRateLimiter(3, 5*time.Minute)
-	refreshLimiter := middleware.NewRateLimiter(10, time.Minute)
-	socialLimiter := middleware.NewRateLimiter(5, time.Minute)
+	if rateStore == nil {
+		rateStore = middleware.NewInMemoryRateLimitStore()
+	}
+	loginLimiter := middleware.NewRateLimiterWithStore(5, time.Minute, rateStore)
+	registerLimiter := middleware.NewRateLimiterWithStore(5, time.Minute, rateStore)
+	passwordLimiter := middleware.NewRateLimiterWithStore(3, 5*time.Minute, rateStore)
+	refreshLimiter := middleware.NewRateLimiterWithStore(10, time.Minute, rateStore)
+	socialLimiter := middleware.NewRateLimiterWithStore(5, time.Minute, rateStore)
 
 	auth.POST("/register", registerLimiter.Middleware(), handler.Register)
 	auth.POST("/login", loginLimiter.Middleware(), handler.Login)

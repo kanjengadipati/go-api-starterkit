@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/hex"
 	"errors"
 	"go-api-starterkit/internal/appsetup"
 	"go-api-starterkit/internal/config"
@@ -279,7 +280,7 @@ func TestAuthMiddleware_RejectsRefreshToken(t *testing.T) {
 		c.Status(http.StatusOK)
 	})
 
-	refreshToken, err := jwtService.GenerateToken(1, "user", time.Minute, "refresh")
+	refreshToken, err := jwtService.GenerateToken(1, "user", time.Minute, "refresh", 0)
 	assert.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
@@ -307,6 +308,7 @@ func TestAuthMiddleware_RejectsMalformedClaimsGracefully(t *testing.T) {
 		"user_id": "not-a-number",
 		"role":    "user",
 		"type":    "access",
+		"tv":      float64(0),
 	}, time.Minute)
 	assert.NoError(t, err)
 
@@ -409,6 +411,9 @@ func TestAuthService_Register_IgnoresEmailDeliveryFailure(t *testing.T) {
 	verificationRepo.create = func(tk *token.EmailVerificationToken) error {
 		createdVerification++
 		assert.Equal(t, uint(1), tk.UserID)
+		assert.Len(t, tk.Token, 64, "verification token should be stored as SHA-256 hex")
+		_, decErr := hex.DecodeString(tk.Token)
+		assert.NoError(t, decErr)
 		return nil
 	}
 	emailSvc.On("SendVerificationEmail", "test@mail.com", mock.Anything).Return(errors.New("sendgrid unavailable"))

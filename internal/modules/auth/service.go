@@ -1,13 +1,16 @@
 package auth
 
 import (
+	"net/http"
+	"sync"
+	"time"
+
 	"go-api-starterkit/internal/config"
 	"go-api-starterkit/internal/modules/audit"
 	permissionless "go-api-starterkit/internal/modules/social"
 	tokenModule "go-api-starterkit/internal/modules/token"
 	userModule "go-api-starterkit/internal/modules/user"
 	"go-api-starterkit/internal/services"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -39,6 +42,20 @@ type authService struct {
 	EmailSvc              services.EmailService
 	AuditSvc              *audit.Service
 	SocialCfg             config.SocialConfig
+	socialHTTPClient      *http.Client
+	appleKeysCache        *appleJWKSet
+	appleKeysCacheTime    time.Time
+	appleKeysMutex        sync.RWMutex
+}
+
+// AuthServiceOption configures optional authService dependencies (e.g. tests).
+type AuthServiceOption func(*authService)
+
+// WithSocialHTTPClient overrides the HTTP client used for social provider requests.
+func WithSocialHTTPClient(c *http.Client) AuthServiceOption {
+	return func(s *authService) {
+		s.socialHTTPClient = c
+	}
 }
 
 var _ AuthService = (*authService)(nil)
@@ -94,8 +111,9 @@ func NewAuthService(
 	emailSvc services.EmailService,
 	auditSvc *audit.Service,
 	socialCfg config.SocialConfig,
+	opts ...AuthServiceOption,
 ) AuthService {
-	return &authService{
+	s := &authService{
 		DB:                    db,
 		UserRepo:              userRepo,
 		RefreshTokenRepo:      refreshRepo,
@@ -106,4 +124,13 @@ func NewAuthService(
 		AuditSvc:              auditSvc,
 		SocialCfg:             socialCfg,
 	}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(s)
+		}
+	}
+	if s.socialHTTPClient == nil {
+		s.socialHTTPClient = &http.Client{Timeout: 10 * time.Second}
+	}
+	return s
 }

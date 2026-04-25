@@ -79,6 +79,7 @@ func (s *authService) ResetPassword(tokenString string, newPassword string) erro
 
 	user.Password = hashed
 	user.PasswordUpdatedAt = time.Now()
+	user.AccessTokenVersion++
 
 	if err := s.UserRepo.Update(user); err != nil {
 		return err

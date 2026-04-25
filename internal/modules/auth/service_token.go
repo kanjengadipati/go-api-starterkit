@@ -177,7 +177,7 @@ func (s *authService) RefreshToken(oldRefreshToken string) (*AuthTokens, error) 
 		return nil, err
 	}
 
-	newTokens, err := s.issueTokens(uid, user.Role, matchedToken.DeviceID, matchedToken.UserAgent, matchedToken.IPAddress)
+	newTokens, err := s.issueTokens(uid, user.Role, user.AccessTokenVersion, matchedToken.DeviceID, matchedToken.UserAgent, matchedToken.IPAddress)
 	if err != nil {
 		return nil, err
 	}

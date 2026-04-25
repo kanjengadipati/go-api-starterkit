@@ -47,6 +47,9 @@ services:
         condition: service_healthy
     environment:
       ENV_FILE: .env.docker
+      # Reduce peak memory usage during `go run ./cmd/seed` compilation
+      GOMAXPROCS: "1"
+      GOFLAGS: "-p=1"
 
   redis:
     image: redis:7-alpine

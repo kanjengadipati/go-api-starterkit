@@ -51,6 +51,10 @@ This project provides a complete authentication and authorization foundation bui
 | AI | Ollama (optional) |
 | Infrastructure | Docker, Nginx, Redis |
 
+### Go toolchain
+
+`go.mod` declares **Go 1.25** because `go mod tidy` pulls that floor from transitive modules (for example `golang.org/x/oauth2`, `golang.org/x/sys`, and related `golang.org/x/*` releases used by Google APIs and the rest of the graph). Install a [supported Go toolchain](https://go.dev/dl/) that satisfies the `go` line before running `go test` or `go build`. If you must target an older Go release, you will need to fork and pin older `golang.org/x/*` (and possibly trim Google social-login dependencies)—that is not supported in this template out of the box.
+
 ---
 
 ## Quickstart
@@ -139,6 +143,7 @@ AI_PROVIDER=mock
 AI_MODEL=mock-model
 AI_BASE_URL=
 AI_API_KEY=
+REDIS_URL=
 ```
 
 ### Notes
@@ -156,6 +161,7 @@ AI_API_KEY=
 - `AI_PROVIDER` supports `mock`, `ollama`, `openai`, and `gemini`.
 - `AI_BASE_URL` is optional for hosted providers and only required when `AI_PROVIDER=ollama`.
 - `AUTO_RUN_MIGRATIONS` and `AUTO_RUN_SEEDS` are optional flags for startup-time initialization (keep `false` for local and Docker).
+- `REDIS_URL` (optional) enables a shared Redis-backed rate limit store for auth endpoints; when unset, the app uses an in-memory limiter suitable for a single instance. Wiring happens in [`internal/appsetup/rate_limit_store.go`](internal/appsetup/rate_limit_store.go) so `internal/config` stays free of `middleware` imports.
 
 ---
 
@@ -345,6 +351,7 @@ POST /auth/admin/audit-logs/investigate
 ## API Conventions
 
 - Authenticated routes require `Authorization: Bearer <access_token>`
+- Access tokens are short-lived (10 minutes) and carry a security version; admin routes reject tokens that no longer match the database after role or password changes
 - Admin routes require an access token that belongs to an admin user
 - Refresh tokens are only valid for `POST /auth/refresh`
 - Success responses use the envelope: `status`, `message`, optional `data`, optional `meta`
@@ -470,6 +477,8 @@ This starterkit is designed to stay platform-agnostic.
 - Run seed data only when you intentionally need initial roles, permissions, or admin users
 - Inject secrets through your deployment platform instead of committing real env files
 
+**TLS / HTTPS:** The Go process listens for plain HTTP (for example on `PORT` / 8080). Production setups should terminate TLS at a reverse proxy or load balancer (the included Docker stack uses Nginx for this). If clients can reach the app port directly without TLS (misconfigured firewall, bypassing the proxy), traffic will not be encrypted at the application layer—ensure only the TLS front end is exposed on the public internet.
+
 ```bash
 go build -tags netgo -ldflags '-s -w' -o app ./cmd/api
 ./app
@@ -483,7 +492,7 @@ go build -tags netgo -ldflags '-s -w' -o app ./cmd/api
 - Use secret managers or platform-managed env vars for production deployments
 - Rotate any third-party credentials that were ever exposed locally or in git history
 - Use separate credentials for local, staging, and production environments
-- Sensitive auth endpoints include a swappable rate-limit store; the default in-memory store is suitable for a single instance, while multi-instance deployments should replace it with a shared backend such as Redis.
+- Sensitive auth endpoints share one rate-limit store: set `REDIS_URL` for Redis (multi-instance friendly); otherwise an in-memory store is used (single instance only).
 - The app sets baseline security headers including CSP, HSTS on HTTPS requests, `X-Content-Type-Options`, and `X-Frame-Options`
 - Request IDs are propagated via the `X-Request-ID` header
 - Trusted proxy handling is configurable through `TRUSTED_PROXIES`

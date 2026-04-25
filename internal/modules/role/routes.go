@@ -8,9 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(api *gin.RouterGroup, handler *Handler, jwtService *services.JWTService, permissionService *permissionModule.Service) {
+func SetupRoutes(api *gin.RouterGroup, handler *Handler, jwtService *services.JWTService, permissionService *permissionModule.Service, tokenVersionSrc middleware.AccessTokenVersionSource) {
 	protected := api.Group("/auth/admin")
 	protected.Use(middleware.AuthMiddleware(jwtService))
+	protected.Use(middleware.RequireAccessTokenVersion(tokenVersionSrc))
 
 	protected.GET("/roles", middleware.RequirePermission(permissionService, "role.read"), handler.GetRoles)
 	protected.GET("/permissions", middleware.RequirePermission(permissionService, "permission.read"), handler.GetPermissions)
