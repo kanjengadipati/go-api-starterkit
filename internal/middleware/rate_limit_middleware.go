@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"go-api-starterkit/internal/httpx"
+	"pleco-api/internal/httpx"
 
 	"github.com/gin-gonic/gin"
 )

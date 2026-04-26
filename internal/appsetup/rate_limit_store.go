@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"go-api-starterkit/internal/middleware"
+	"pleco-api/internal/middleware"
 
 	"github.com/redis/go-redis/v9"
 )

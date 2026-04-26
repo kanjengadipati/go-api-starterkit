@@ -1,8 +1,8 @@
 package appsetup
 
 import (
-	"go-api-starterkit/internal/config"
-	"go-api-starterkit/internal/services"
+	"pleco-api/internal/config"
+	"pleco-api/internal/services"
 
 	"github.com/gin-gonic/gin"
 )

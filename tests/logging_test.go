@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"go-api-starterkit/internal/middleware"
+	"pleco-api/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

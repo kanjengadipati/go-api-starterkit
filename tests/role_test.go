@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"go-api-starterkit/internal/modules/permission"
-	"go-api-starterkit/internal/modules/role"
+	"pleco-api/internal/modules/permission"
+	"pleco-api/internal/modules/role"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

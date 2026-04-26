@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"go-api-starterkit/internal/ai"
+	"pleco-api/internal/ai"
 
 	"gorm.io/gorm"
 )

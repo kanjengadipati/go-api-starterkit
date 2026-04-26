@@ -1,4 +1,4 @@
-module go-api-starterkit
+module pleco-api
 
 go 1.25.0
 

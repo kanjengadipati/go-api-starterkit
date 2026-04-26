@@ -5,9 +5,9 @@ import (
 	"log"
 	"time"
 
-	"go-api-starterkit/internal/modules/audit"
-	tokenModule "go-api-starterkit/internal/modules/token"
-	"go-api-starterkit/internal/utils"
+	"pleco-api/internal/modules/audit"
+	tokenModule "pleco-api/internal/modules/token"
+	"pleco-api/internal/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"go-api-starterkit/internal/appsetup"
+	"pleco-api/internal/appsetup"
 )
 
 func main() {

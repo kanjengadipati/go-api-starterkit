@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"go-api-starterkit/internal/appsetup"
-	"go-api-starterkit/internal/config"
+	"pleco-api/internal/appsetup"
+	"pleco-api/internal/config"
 )
 
 func main() {

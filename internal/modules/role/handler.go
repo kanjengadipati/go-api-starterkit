@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strconv"
 
-	"go-api-starterkit/internal/httpx"
+	"pleco-api/internal/httpx"
 
 	"gorm.io/gorm"
 

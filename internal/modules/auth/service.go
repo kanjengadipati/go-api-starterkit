@@ -5,12 +5,12 @@ import (
 	"sync"
 	"time"
 
-	"go-api-starterkit/internal/config"
-	"go-api-starterkit/internal/modules/audit"
-	permissionless "go-api-starterkit/internal/modules/social"
-	tokenModule "go-api-starterkit/internal/modules/token"
-	userModule "go-api-starterkit/internal/modules/user"
-	"go-api-starterkit/internal/services"
+	"pleco-api/internal/config"
+	"pleco-api/internal/modules/audit"
+	permissionless "pleco-api/internal/modules/social"
+	tokenModule "pleco-api/internal/modules/token"
+	userModule "pleco-api/internal/modules/user"
+	"pleco-api/internal/services"
 
 	"gorm.io/gorm"
 )

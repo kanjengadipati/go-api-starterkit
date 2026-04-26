@@ -4,11 +4,11 @@ import (
 	"log"
 	"time"
 
-	"go-api-starterkit/internal/modules/audit"
-	tokenModule "go-api-starterkit/internal/modules/token"
-	userModule "go-api-starterkit/internal/modules/user"
-	"go-api-starterkit/internal/services"
-	"go-api-starterkit/internal/utils"
+	"pleco-api/internal/modules/audit"
+	tokenModule "pleco-api/internal/modules/token"
+	userModule "pleco-api/internal/modules/user"
+	"pleco-api/internal/services"
+	"pleco-api/internal/utils"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"

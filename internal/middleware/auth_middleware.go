@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"go-api-starterkit/internal/httpx"
-	"go-api-starterkit/internal/services"
+	"pleco-api/internal/httpx"
+	"pleco-api/internal/services"
 	"strings"
 
 	"github.com/gin-gonic/gin"

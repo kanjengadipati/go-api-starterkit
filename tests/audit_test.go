@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	aiModule "go-api-starterkit/internal/ai"
-	"go-api-starterkit/internal/config"
-	"go-api-starterkit/internal/modules/audit"
+	aiModule "pleco-api/internal/ai"
+	"pleco-api/internal/config"
+	"pleco-api/internal/modules/audit"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

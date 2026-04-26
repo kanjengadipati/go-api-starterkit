@@ -1,7 +1,7 @@
 package audit
 
 import (
-	"go-api-starterkit/internal/ai"
+	"pleco-api/internal/ai"
 
 	"gorm.io/gorm"
 )

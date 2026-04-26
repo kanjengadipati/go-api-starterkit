@@ -1,16 +1,16 @@
 package appsetup
 
 import (
-	"go-api-starterkit/internal/ai"
-	"go-api-starterkit/internal/config"
-	"go-api-starterkit/internal/httpx"
-	"go-api-starterkit/internal/middleware"
-	"go-api-starterkit/internal/modules/audit"
-	"go-api-starterkit/internal/modules/auth"
-	"go-api-starterkit/internal/modules/permission"
-	"go-api-starterkit/internal/modules/role"
-	"go-api-starterkit/internal/modules/user"
-	"go-api-starterkit/internal/services"
+	"pleco-api/internal/ai"
+	"pleco-api/internal/config"
+	"pleco-api/internal/httpx"
+	"pleco-api/internal/middleware"
+	"pleco-api/internal/modules/audit"
+	"pleco-api/internal/modules/auth"
+	"pleco-api/internal/modules/permission"
+	"pleco-api/internal/modules/role"
+	"pleco-api/internal/modules/user"
+	"pleco-api/internal/services"
 
 	"gorm.io/gorm"
 

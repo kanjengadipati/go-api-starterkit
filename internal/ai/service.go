@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"go-api-starterkit/internal/config"
+	"pleco-api/internal/config"
 )
 
 var ErrDisabled = errors.New("ai is disabled")

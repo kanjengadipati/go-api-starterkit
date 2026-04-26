@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"go-api-starterkit/internal/httpx"
+	"pleco-api/internal/httpx"
 
 	"github.com/gin-gonic/gin"
 )

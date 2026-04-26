@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"go-api-starterkit/internal/modules/audit"
-	"go-api-starterkit/internal/services"
+	"pleco-api/internal/modules/audit"
+	"pleco-api/internal/services"
 
 	"gorm.io/gorm"
 )

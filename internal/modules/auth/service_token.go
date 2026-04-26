@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"go-api-starterkit/internal/modules/audit"
-	"go-api-starterkit/internal/utils"
+	"pleco-api/internal/modules/audit"
+	"pleco-api/internal/utils"
 
 	"gorm.io/gorm"
 )

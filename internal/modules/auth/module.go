@@ -1,11 +1,11 @@
 package auth
 
 import (
-	"go-api-starterkit/internal/config"
-	"go-api-starterkit/internal/modules/audit"
-	"go-api-starterkit/internal/modules/permission"
-	userModule "go-api-starterkit/internal/modules/user"
-	"go-api-starterkit/internal/services"
+	"pleco-api/internal/config"
+	"pleco-api/internal/modules/audit"
+	"pleco-api/internal/modules/permission"
+	userModule "pleco-api/internal/modules/user"
+	"pleco-api/internal/services"
 
 	"gorm.io/gorm"
 )

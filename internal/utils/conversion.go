@@ -2,7 +2,7 @@ package utils
 
 import (
 	"fmt"
-	user "go-api-starterkit/internal/modules/user"
+	user "pleco-api/internal/modules/user"
 
 	"github.com/gin-gonic/gin"
 )

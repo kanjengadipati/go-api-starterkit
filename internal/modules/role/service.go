@@ -4,7 +4,7 @@ import (
 	"errors"
 	"slices"
 
-	permissionModule "go-api-starterkit/internal/modules/permission"
+	permissionModule "pleco-api/internal/modules/permission"
 )
 
 type Service struct {

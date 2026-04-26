@@ -1,9 +1,9 @@
 package user
 
 import (
-	"go-api-starterkit/internal/middleware"
-	"go-api-starterkit/internal/modules/permission"
-	"go-api-starterkit/internal/services"
+	"pleco-api/internal/middleware"
+	"pleco-api/internal/modules/permission"
+	"pleco-api/internal/services"
 
 	"github.com/gin-gonic/gin"
 )

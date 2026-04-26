@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"go-api-starterkit/internal/ai"
-	"go-api-starterkit/internal/config"
+	"pleco-api/internal/ai"
+	"pleco-api/internal/config"
 
 	"gorm.io/gorm"
 )

@@ -2,13 +2,13 @@ package auth
 
 import (
 	"errors"
-	"go-api-starterkit/internal/utils"
+	"pleco-api/internal/utils"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"go-api-starterkit/internal/modules/permission"
-	"go-api-starterkit/internal/services"
+	"pleco-api/internal/modules/permission"
+	"pleco-api/internal/services"
 )
 
 type AuthHandler struct {

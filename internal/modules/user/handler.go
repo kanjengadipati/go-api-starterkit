@@ -3,8 +3,8 @@ package user
 import (
 	"strconv"
 
-	"go-api-starterkit/internal/httpx"
-	"go-api-starterkit/internal/modules/audit"
+	"pleco-api/internal/httpx"
+	"pleco-api/internal/modules/audit"
 
 	"github.com/gin-gonic/gin"
 )

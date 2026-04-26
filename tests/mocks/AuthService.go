@@ -3,8 +3,8 @@
 package mocks
 
 import (
-	auth "go-api-starterkit/internal/modules/auth"
-	user "go-api-starterkit/internal/modules/user"
+	auth "pleco-api/internal/modules/auth"
+	user "pleco-api/internal/modules/user"
 
 	mock "github.com/stretchr/testify/mock"
 )

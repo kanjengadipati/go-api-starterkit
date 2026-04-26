@@ -4,9 +4,9 @@ import (
 	"errors"
 	"time"
 
-	"go-api-starterkit/internal/modules/audit"
-	tokenModule "go-api-starterkit/internal/modules/token"
-	"go-api-starterkit/internal/services"
+	"pleco-api/internal/modules/audit"
+	tokenModule "pleco-api/internal/modules/token"
+	"pleco-api/internal/services"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"

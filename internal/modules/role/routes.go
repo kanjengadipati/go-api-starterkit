@@ -1,9 +1,9 @@
 package role
 
 import (
-	"go-api-starterkit/internal/middleware"
-	permissionModule "go-api-starterkit/internal/modules/permission"
-	"go-api-starterkit/internal/services"
+	"pleco-api/internal/middleware"
+	permissionModule "pleco-api/internal/modules/permission"
+	"pleco-api/internal/services"
 
 	"github.com/gin-gonic/gin"
 )

@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"go-api-starterkit/internal/middleware"
-	"go-api-starterkit/internal/services"
+	"pleco-api/internal/middleware"
+	"pleco-api/internal/services"
 	"time"
 
 	"github.com/gin-gonic/gin"

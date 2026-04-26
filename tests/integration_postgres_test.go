@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"go-api-starterkit/internal/modules/audit"
-	"go-api-starterkit/internal/modules/permission"
+	"pleco-api/internal/modules/audit"
+	"pleco-api/internal/modules/permission"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

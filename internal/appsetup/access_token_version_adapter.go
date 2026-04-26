@@ -1,6 +1,6 @@
 package appsetup
 
-import userModule "go-api-starterkit/internal/modules/user"
+import userModule "pleco-api/internal/modules/user"
 
 type accessTokenVersionAdapter struct {
 	repo userModule.Repository

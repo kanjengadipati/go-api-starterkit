@@ -1,8 +1,8 @@
 package tests
 
 import (
-	"go-api-starterkit/internal/middleware"
-	user "go-api-starterkit/internal/modules/user"
+	"pleco-api/internal/middleware"
+	user "pleco-api/internal/modules/user"
 	"net/http"
 	"net/http/httptest"
 	"strings"

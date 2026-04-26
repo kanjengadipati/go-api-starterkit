@@ -1,4 +1,5 @@
-# Go API Starterkit
+# Pleco
+## Ship your product. Let Pleco handle the auth.
 
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev)
 [![Gin](https://img.shields.io/badge/Gin-HTTP%20Framework-009688)](https://gin-gonic.com)
@@ -8,11 +9,11 @@
 [![AI Powered](https://img.shields.io/badge/AI-Audit%20Investigator-ff6b35?logo=ollama)](https://ollama.com)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-> **Skip the boilerplate.** A modular, production-oriented Go REST API foundation with JWT authentication, social login, RBAC, per-device session management, audit trail, and an AI-powered log investigator — ready to clone, extend, and ship.
+> **Ship your product. Let Pleco handle the auth.** A modular, production-oriented Go REST API foundation with JWT authentication, social login, RBAC, per-device session management, audit trail, and an AI-powered log investigator — ready to clone, extend, and ship.
 
 Intended for Go backend developers who want a solid, security-conscious auth foundation to build on — without reinventing JWT flows, email verification, social login, or audit logging from scratch.
 
-🔗 **Dashboard Demo:** [gokitdash.vercel.app](https://gokitdash.vercel.app/) &nbsp;|&nbsp; 📖 **API Docs:** [go-api-starterkit.onrender.com/docs](https://go-api-starterkit.onrender.com/docs)
+🔗 **Dashboard Demo:** [gokitdash.vercel.app](https://gokitdash.vercel.app/) &nbsp;|&nbsp; 📖 **API Docs:** [pleco-api.onrender.com/docs](https://pleco-api.onrender.com/docs)
 
 ---
 
@@ -60,6 +61,8 @@ This project provides a complete authentication and authorization foundation bui
 ## Architecture
 
 ![Architecture](docs/architecture.svg)
+
+___
 
 ## Quickstart
 

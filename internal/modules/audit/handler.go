@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"go-api-starterkit/internal/ai"
-	"go-api-starterkit/internal/httpx"
+	"pleco-api/internal/ai"
+	"pleco-api/internal/httpx"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"

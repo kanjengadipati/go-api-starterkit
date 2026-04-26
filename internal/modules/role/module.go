@@ -1,7 +1,7 @@
 package role
 
 import (
-	permissionModule "go-api-starterkit/internal/modules/permission"
+	permissionModule "pleco-api/internal/modules/permission"
 
 	"gorm.io/gorm"
 )

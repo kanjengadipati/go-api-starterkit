@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"go-api-starterkit/internal/modules/audit"
-	permissionless "go-api-starterkit/internal/modules/social"
-	userModule "go-api-starterkit/internal/modules/user"
+	"pleco-api/internal/modules/audit"
+	permissionless "pleco-api/internal/modules/social"
+	userModule "pleco-api/internal/modules/user"
 
 	"github.com/golang-jwt/jwt/v5"
 	"google.golang.org/api/idtoken"

@@ -2,11 +2,11 @@ package seeds
 
 import (
 	"fmt"
-	"go-api-starterkit/internal/config"
-	permissionModule "go-api-starterkit/internal/modules/permission"
-	roleModule "go-api-starterkit/internal/modules/role"
-	userModule "go-api-starterkit/internal/modules/user"
-	"go-api-starterkit/internal/services"
+	"pleco-api/internal/config"
+	permissionModule "pleco-api/internal/modules/permission"
+	roleModule "pleco-api/internal/modules/role"
+	userModule "pleco-api/internal/modules/user"
+	"pleco-api/internal/services"
 	"log"
 
 	"gorm.io/gorm"

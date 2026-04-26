@@ -3,9 +3,9 @@ package appsetup
 import (
 	"log"
 
-	"go-api-starterkit/internal/config"
-	"go-api-starterkit/internal/seeds"
-	migrationFiles "go-api-starterkit/migrations"
+	"pleco-api/internal/config"
+	"pleco-api/internal/seeds"
+	migrationFiles "pleco-api/migrations"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"

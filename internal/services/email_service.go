@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"go-api-starterkit/internal/config"
+	"pleco-api/internal/config"
 
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
