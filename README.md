@@ -336,7 +336,7 @@ POST /auth/admin/audit-logs/investigate
 | DELETE | `/auth/admin/users/:id` | Delete user |
 | GET | `/auth/admin/audit-logs` | List audit logs |
 | GET | `/auth/admin/audit-logs/export` | Export audit logs as CSV |
-| POST | `/auth/admin/audit-logs/investigate` | Run AI investigation |
+| POST | `/auth/admin/audit-logs/investigations` | Run AI investigation |
 | GET | `/auth/admin/audit-logs/investigations` | List saved investigations |
 | GET | `/auth/admin/audit-logs/investigations/:id` | Get investigation detail |
 | GET | `/auth/admin/roles` | List roles |
