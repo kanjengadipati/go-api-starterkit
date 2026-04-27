@@ -23,7 +23,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
+	"github.com/DATA-DOG/go-sqlmock"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -393,8 +394,17 @@ func TestAuthService_Logout_DeletesFoundToken(t *testing.T) {
 }
 
 func TestAuthService_Register_IgnoresEmailDeliveryFailure(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	sqlDB, dbMock, err := sqlmock.New()
 	require.NoError(t, err)
+	defer sqlDB.Close()
+
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
+	}), &gorm.Config{})
+	require.NoError(t, err)
+
+	dbMock.ExpectBegin()
+	dbMock.ExpectCommit()
 
 	userRepo := &stubUserRepo{}
 	verificationRepo := &stubEmailVerificationRepo{}
@@ -438,6 +448,7 @@ func TestAuthService_Register_IgnoresEmailDeliveryFailure(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, createdUser)
 	assert.Equal(t, 1, createdVerification)
+	assert.NoError(t, dbMock.ExpectationsWereMet())
 }
 
 func TestAuthService_ListSessions_MarksCurrentDevice(t *testing.T) {
