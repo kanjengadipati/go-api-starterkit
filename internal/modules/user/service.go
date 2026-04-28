@@ -12,6 +12,8 @@ import (
 	"gorm.io/gorm"
 )
 
+var errUnsupportedRole = errors.New("unsupported role")
+
 type Service struct {
 	DB               *gorm.DB
 	UserRepo         Repository
@@ -42,6 +44,9 @@ func (s *Service) CreateUser(input CreateUserRequest) (*User, error) {
 	if role == "" {
 		role = "user"
 	}
+	if !isAssignableRole(role) {
+		return nil, errUnsupportedRole
+	}
 
 	hashedPassword, err := services.HashPassword(input.Password)
 	if err != nil {
@@ -67,6 +72,9 @@ func (s *Service) UpdateUser(id uint, input UpdateUserRequest) (*User, error) {
 	user, err := s.UserRepo.FindByID(id)
 	if err != nil {
 		return nil, err
+	}
+	if !isAssignableRole(input.Role) {
+		return nil, errUnsupportedRole
 	}
 
 	if existing, err := s.UserRepo.FindByEmail(input.Email); err == nil && existing != nil && existing.ID != 0 && existing.ID != id {
@@ -156,4 +164,13 @@ func (s *Service) runInTx(fn func(userRepo Repository, refreshRepo tokenModule.R
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		return fn(s.UserRepo.WithTx(tx), s.RefreshTokenRepo.WithTx(tx))
 	})
+}
+
+func isAssignableRole(role string) bool {
+	switch role {
+	case "admin", "user":
+		return true
+	default:
+		return false
+	}
 }

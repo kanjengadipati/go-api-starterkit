@@ -93,15 +93,27 @@ func (_m *AuthService) LogoutAll(userID uint, userAgent string, ipAddress string
 	return ret.Error(0)
 }
 
-func (_m *AuthService) LogoutOtherSessions(userID uint, currentDeviceID string, userAgent string, ipAddress string) error {
+func (_m *AuthService) LogoutOtherSessions(userID uint, currentDeviceID string, userAgent string, ipAddress string) (*auth.AuthTokens, error) {
 	ret := _m.Called(userID, currentDeviceID, userAgent, ipAddress)
 	if len(ret) == 0 {
 		panic("no return value specified for LogoutOtherSessions")
 	}
-	if rf, ok := ret.Get(0).(func(uint, string, string, string) error); ok {
+	var r0 *auth.AuthTokens
+	if rf, ok := ret.Get(0).(func(uint, string, string, string) (*auth.AuthTokens, error)); ok {
 		return rf(userID, currentDeviceID, userAgent, ipAddress)
 	}
-	return ret.Error(0)
+	if rf, ok := ret.Get(0).(func(uint, string, string, string) *auth.AuthTokens); ok {
+		r0 = rf(userID, currentDeviceID, userAgent, ipAddress)
+	} else if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*auth.AuthTokens)
+	}
+	var r1 error
+	if rf, ok := ret.Get(1).(func(uint, string, string, string) error); ok {
+		r1 = rf(userID, currentDeviceID, userAgent, ipAddress)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 func (_m *AuthService) ListSessions(userID uint, currentDeviceID string) ([]auth.Session, error) {

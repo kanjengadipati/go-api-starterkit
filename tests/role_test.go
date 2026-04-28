@@ -40,6 +40,7 @@ func (s *stubRoleRepo) WithTx(_ *gorm.DB) role.Repository {
 type stubPermissionRepo struct {
 	listAll             func() ([]permission.Permission, error)
 	listRole            func(roleID uint) ([]string, error)
+	listRoleByName      func(roleName string) ([]string, error)
 	allPermissionsExist func(names []string) (bool, error)
 	replaceRole         func(roleID uint, permissions []string) error
 }
@@ -58,6 +59,13 @@ func (s *stubPermissionRepo) ListAllPermissions() ([]permission.Permission, erro
 func (s *stubPermissionRepo) ListRolePermissions(roleID uint) ([]string, error) {
 	if s.listRole != nil {
 		return s.listRole(roleID)
+	}
+	return nil, nil
+}
+
+func (s *stubPermissionRepo) ListRolePermissionsByName(roleName string) ([]string, error) {
+	if s.listRoleByName != nil {
+		return s.listRoleByName(roleName)
 	}
 	return nil, nil
 }

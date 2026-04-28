@@ -120,12 +120,13 @@ func (h *AuthHandler) LogoutOtherSessions(c *gin.Context) {
 	userAgent := c.GetHeader("User-Agent")
 	ipAddress := c.ClientIP()
 
-	if err := h.AuthService.LogoutOtherSessions(userID, currentDeviceID, userAgent, ipAddress); err != nil {
+	tokens, err := h.AuthService.LogoutOtherSessions(userID, currentDeviceID, userAgent, ipAddress)
+	if err != nil {
 		httpx.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	httpx.Success(c, http.StatusOK, "other sessions revoked", nil, nil)
+	httpx.Success(c, http.StatusOK, "other sessions revoked", tokens, nil)
 }
 
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
@@ -205,7 +206,7 @@ func (h *AuthHandler) Profile(c *gin.Context) {
 		return
 	}
 
-	permissions, _ := h.PermissionSvc.Repo.ListRolePermissions(user.RoleID)
+	permissions, _ := h.PermissionSvc.Repo.ListRolePermissionsByName(user.Role)
 
 	httpx.Success(c, http.StatusOK, "Profile fetched", gin.H{
 		"id":          user.ID,

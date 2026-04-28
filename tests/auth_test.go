@@ -542,8 +542,28 @@ func TestAuthService_ListSessions_MarksCurrentDevice(t *testing.T) {
 }
 
 func TestAuthService_LogoutOtherSessions(t *testing.T) {
+	jwtService := services.NewJWTService([]byte("super_secret_key_123_must_be_32_bytes_long_minimum"))
+	userRepo := &stubUserRepo{
+		findByID: func(id uint) (*user.User, error) {
+			assert.Equal(t, uint(9), id)
+			return &user.User{
+				Model:              gorm.Model{ID: id},
+				Role:               "user",
+				AccessTokenVersion: 2,
+			}, nil
+		},
+		update: func(u *user.User) error {
+			assert.Equal(t, uint(3), u.AccessTokenVersion)
+			return nil
+		},
+	}
 	refreshRepo := &stubRefreshTokenRepo{
 		deleteByUserExcept: func(userID uint, deviceID string) error {
+			assert.Equal(t, uint(9), userID)
+			assert.Equal(t, "web", deviceID)
+			return nil
+		},
+		deleteByUserDevice: func(userID uint, deviceID string) error {
 			assert.Equal(t, uint(9), userID)
 			assert.Equal(t, "web", deviceID)
 			return nil
@@ -552,19 +572,22 @@ func TestAuthService_LogoutOtherSessions(t *testing.T) {
 
 	service := auth.NewAuthService(
 		nil,
-		&stubUserRepo{},
+		userRepo,
 		refreshRepo,
 		&stubEmailVerificationRepo{},
 		&stubSocialRepo{},
-		nil,
+		jwtService,
 		nil,
 		nil,
 		config.SocialConfig{},
 	)
 
-	err := service.LogoutOtherSessions(9, "web", "Browser", "127.0.0.1")
+	tokens, err := service.LogoutOtherSessions(9, "web", "Browser", "127.0.0.1")
 
 	assert.NoError(t, err)
+	require.NotNil(t, tokens)
+	assert.NotEmpty(t, tokens.AccessToken)
+	assert.NotEmpty(t, tokens.RefreshToken)
 }
 
 func TestAuthService_LogoutAll_RevokesRefreshTokensAndBumpsAccessTokenVersion(t *testing.T) {
@@ -783,7 +806,12 @@ func TestRefreshToken_Success(t *testing.T) {
 
 func TestProfile_Success(t *testing.T) {
 	mockService := new(mocks.AuthService)
-	permSvc := permission.NewService(&stubPermissionRepo{})
+	permSvc := permission.NewService(&stubPermissionRepo{
+		listRoleByName: func(roleName string) ([]string, error) {
+			assert.Equal(t, "user", roleName)
+			return []string{"session.read"}, nil
+		},
+	})
 	handler := auth.AuthHandler{
 		AuthService:   mockService,
 		PermissionSvc: permSvc,
@@ -810,6 +838,7 @@ func TestProfile_Success(t *testing.T) {
 	data, ok := bodyMap["data"].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, "test@mail.com", data["email"])
+	assert.Equal(t, []interface{}{"session.read"}, data["permissions"])
 }
 
 func TestResetPassword_RevokesRefreshTokensAndBumpsAccessTokenVersion(t *testing.T) {

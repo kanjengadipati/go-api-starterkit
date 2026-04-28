@@ -217,6 +217,20 @@ func TestCreateUser_EmailAlreadyExists(t *testing.T) {
 	assert.EqualError(t, err, "email already in use")
 }
 
+func TestCreateUser_RejectsSuperadminRole(t *testing.T) {
+	repo := &stubUserRepository{}
+	service := &user.Service{UserRepo: repo}
+
+	_, err := service.CreateUser(user.CreateUserRequest{
+		Name:     "Tester",
+		Email:    "test@mail.com",
+		Password: "secret123",
+		Role:     "superadmin",
+	})
+
+	assert.EqualError(t, err, "unsupported role")
+}
+
 func TestChangePassword_InvalidCurrentPassword(t *testing.T) {
 	repo := &stubUserRepository{}
 	service := &user.Service{UserRepo: repo, RefreshTokenRepo: &stubRefreshTokenRepo{}}
@@ -326,4 +340,24 @@ func TestUpdateUser_RoleChangeReturnsRefreshTokenRevocationError(t *testing.T) {
 	})
 
 	assert.EqualError(t, err, "revoke failed")
+}
+
+func TestUpdateUser_RejectsSuperadminRole(t *testing.T) {
+	repo := &stubUserRepository{}
+	service := &user.Service{UserRepo: repo, RefreshTokenRepo: &stubRefreshTokenRepo{}}
+
+	repo.findByID = func(id uint) (*user.User, error) {
+		return &user.User{
+			Model: gorm.Model{ID: id},
+			Role:  "user",
+		}, nil
+	}
+
+	_, err := service.UpdateUser(7, user.UpdateUserRequest{
+		Name:  "New Name",
+		Email: "new@mail.com",
+		Role:  "superadmin",
+	})
+
+	assert.EqualError(t, err, "unsupported role")
 }

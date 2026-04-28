@@ -265,7 +265,7 @@ paths:
     post:
       tags: [Auth]
       summary: Revoke all active sessions except the current device
-      description: Keeps the current device session and revokes refresh-token-backed sessions on other devices.
+      description: Keeps the current device session, revokes refresh-token-backed sessions on other devices, and rotates tokens for the current device.
       security:
         - bearerAuth: []
       parameters:
@@ -276,11 +276,11 @@ paths:
             type: string
       responses:
         '200':
-          description: Other sessions revoked
+          description: Other sessions revoked and current device tokens rotated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EnvelopeMessage'
+                $ref: '#/components/schemas/EnvelopeAuthTokens'
         '400':
           description: Missing device id
           content:
@@ -914,7 +914,7 @@ components:
           format: password
         role:
           type: string
-          enum: [superadmin, admin, user]
+          enum: [admin, user]
         is_verified:
           type: boolean
     UpdateUserRequest:
@@ -928,7 +928,7 @@ components:
           format: email
         role:
           type: string
-          enum: [superadmin, admin, user]
+          enum: [admin, user]
         is_verified:
           type: boolean
     AuthTokens:

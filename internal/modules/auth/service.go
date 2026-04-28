@@ -25,6 +25,7 @@ type refreshTokenRepositoryTx interface {
 	Save(token *tokenModule.RefreshToken) error
 	DeleteByUser(userID uint) error
 	DeleteByUserAndDevice(userID uint, deviceID string) error
+	DeleteByUserExceptDevice(userID uint, deviceID string) error
 	WithTx(tx *gorm.DB) tokenModule.RefreshTokenRepository
 }
 
@@ -46,7 +47,7 @@ type AuthService interface {
 	Login(email, password, deviceID, userAgent, ipAddress string) (*AuthTokens, error)
 	Logout(userID uint, deviceID string) error
 	LogoutAll(userID uint, userAgent, ipAddress string) error
-	LogoutOtherSessions(userID uint, currentDeviceID, userAgent, ipAddress string) error
+	LogoutOtherSessions(userID uint, currentDeviceID, userAgent, ipAddress string) (*AuthTokens, error)
 	RefreshToken(oldRefreshToken string) (*AuthTokens, error)
 	GetProfile(userID uint) (*userModule.User, error)
 	ListSessions(userID uint, currentDeviceID string) ([]Session, error)

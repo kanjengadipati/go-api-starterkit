@@ -6,6 +6,7 @@ type Repository interface {
 	HasRolePermission(roleName, permission string) (bool, error)
 	ListAllPermissions() ([]Permission, error)
 	ListRolePermissions(roleID uint) ([]string, error)
+	ListRolePermissionsByName(roleName string) ([]string, error)
 	AllPermissionsExist(names []string) (bool, error)
 	ReplaceRolePermissions(roleID uint, permissions []string) error
 	WithTx(tx *gorm.DB) Repository
@@ -48,6 +49,19 @@ func (r *gormRepository) ListRolePermissions(roleID uint) ([]string, error) {
 		Where("role_id = ?", roleID).
 		Order("permission ASC").
 		Pluck("permission", &permissions).Error; err != nil {
+		return nil, err
+	}
+
+	return permissions, nil
+}
+
+func (r *gormRepository) ListRolePermissionsByName(roleName string) ([]string, error) {
+	var permissions []string
+	if err := r.db.Table("role_permissions").
+		Joins("JOIN roles ON roles.id = role_permissions.role_id").
+		Where("roles.name = ?", roleName).
+		Order("role_permissions.permission ASC").
+		Pluck("role_permissions.permission", &permissions).Error; err != nil {
 		return nil, err
 	}
 

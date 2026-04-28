@@ -76,9 +76,26 @@ func (s *authService) LogoutAll(userID uint, userAgent, ipAddress string) error 
 	return nil
 }
 
-func (s *authService) LogoutOtherSessions(userID uint, currentDeviceID, userAgent, ipAddress string) error {
-	if err := s.RefreshTokenRepo.DeleteByUserExceptDevice(userID, currentDeviceID); err != nil {
-		return err
+func (s *authService) LogoutOtherSessions(userID uint, currentDeviceID, userAgent, ipAddress string) (*AuthTokens, error) {
+	user, err := s.UserRepo.FindByID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	user.AccessTokenVersion++
+
+	if err := s.runUserRefreshTx(func(userRepo userRepositoryTx, refreshRepo refreshTokenRepositoryTx) error {
+		if err := userRepo.Update(user); err != nil {
+			return err
+		}
+		return refreshRepo.DeleteByUserExceptDevice(userID, currentDeviceID)
+	}); err != nil {
+		return nil, err
+	}
+
+	tokens, err := s.issueTokens(user.ID, user.Role, user.AccessTokenVersion, currentDeviceID, userAgent, ipAddress)
+	if err != nil {
+		return nil, err
 	}
 
 	s.AuditSvc.SafeRecord(audit.RecordInput{
@@ -92,7 +109,7 @@ func (s *authService) LogoutOtherSessions(userID uint, currentDeviceID, userAgen
 		IPAddress:   ipAddress,
 	})
 
-	return nil
+	return tokens, nil
 }
 
 func (s *authService) ListSessions(userID uint, currentDeviceID string) ([]Session, error) {
