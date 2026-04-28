@@ -194,16 +194,16 @@
                   "pm.test('login returns 200', function () {",
                   "  pm.response.to.have.status(200);",
                   "});",
-                  "const json = pm.response.json();",
-                  "const data = json.data || {};",
+                  "const loginJson = pm.response.json();",
+                  "const loginData = loginJson.data || {};",
                   "pm.test('login returns tokens', function () {",
-                  "  pm.expect(data.access_token).to.be.a('string').and.not.empty;",
-                  "  pm.expect(data.refresh_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(loginData.access_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(loginData.refresh_token).to.be.a('string').and.not.empty;",
                   "});",
-                  "if (data.access_token) pm.environment.set('access_token', data.access_token);",
-                  "if (data.refresh_token) pm.environment.set('refresh_token', data.refresh_token);",
-                  "console.log('access_token set:', !!data.access_token);",
-                  "console.log('refresh_token set:', !!data.refresh_token);"
+                  "if (loginData.access_token) pm.environment.set('access_token', loginData.access_token);",
+                  "if (loginData.refresh_token) pm.environment.set('refresh_token', loginData.refresh_token);",
+                  "console.log('access_token set:', !!loginData.access_token);",
+                  "console.log('refresh_token set:', !!loginData.refresh_token);"
                 ],
                 "type": "text/javascript"
               }
@@ -238,9 +238,9 @@
                   "pm.test('profile returns 200', function () {",
                   "  pm.response.to.have.status(200);",
                   "});",
-                  "const json = pm.response.json();",
+                  "const profileJson = pm.response.json();",
                   "pm.test('profile contains email', function () {",
-                  "  pm.expect(json.data.email).to.be.a('string');",
+                  "  pm.expect(profileJson.data.email).to.be.a('string');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -342,16 +342,16 @@
                   "pm.test('refresh returns 200', function () {",
                   "  pm.response.to.have.status(200);",
                   "});",
-                  "const json = pm.response.json();",
-                  "const data = json.data || {};",
+                  "const refreshJson = pm.response.json();",
+                  "const refreshData = refreshJson.data || {};",
                   "pm.test('refresh returns rotated tokens', function () {",
-                  "  pm.expect(data.access_token).to.be.a('string').and.not.empty;",
-                  "  pm.expect(data.refresh_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(refreshData.access_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(refreshData.refresh_token).to.be.a('string').and.not.empty;",
                   "});",
-                  "if (data.access_token) pm.environment.set('access_token', data.access_token);",
-                  "if (data.refresh_token) pm.environment.set('refresh_token', data.refresh_token);",
-                  "console.log('access_token rotated:', !!data.access_token);",
-                  "console.log('refresh_token rotated:', !!data.refresh_token);"
+                  "if (refreshData.access_token) pm.environment.set('access_token', refreshData.access_token);",
+                  "if (refreshData.refresh_token) pm.environment.set('refresh_token', refreshData.refresh_token);",
+                  "console.log('access_token rotated:', !!refreshData.access_token);",
+                  "console.log('refresh_token rotated:', !!refreshData.refresh_token);"
                 ],
                 "type": "text/javascript"
               }
@@ -477,13 +477,14 @@
                   "pm.test('logout other sessions returns 200', function () {",
                   "  pm.response.to.have.status(200);",
                   "});",
-                  "var json = pm.response.json();",
+                  "var logoutOthersJson = pm.response.json();",
+                  "var logoutOthersData = logoutOthersJson.data || {};",
                   "pm.test('logout other sessions returns rotated tokens', function () {",
-                  "  pm.expect(json.data).to.have.property('access_token');",
-                  "  pm.expect(json.data).to.have.property('refresh_token');",
+                  "  pm.expect(logoutOthersData).to.have.property('access_token');",
+                  "  pm.expect(logoutOthersData).to.have.property('refresh_token');",
                   "});",
-                  "pm.environment.set('access_token', json.data.access_token);",
-                  "pm.environment.set('refresh_token', json.data.refresh_token);"
+                  "if (logoutOthersData.access_token) pm.environment.set('access_token', logoutOthersData.access_token);",
+                  "if (logoutOthersData.refresh_token) pm.environment.set('refresh_token', logoutOthersData.refresh_token);"
                 ],
                 "type": "text/javascript"
               }

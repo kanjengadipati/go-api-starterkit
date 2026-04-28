@@ -12,7 +12,7 @@ endif
 
 .DEFAULT_GOAL := help
 
-.PHONY: help fmt test check migrate-up migrate-down migrate-down-all migrate-status migrate-force migrate-create migrate-drop seed db-setup docker-up docker-down docker-logs docker-rebuild
+.PHONY: help fmt test check postman-test migrate-up migrate-down migrate-down-all migrate-status migrate-force migrate-create migrate-drop seed db-setup docker-up docker-down docker-logs docker-rebuild
 
 help: ## Show available Makefile commands
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -24,6 +24,9 @@ test: ## Run the full Go test suite
 	$(GO) test ./...
 
 check: fmt test ## Format code and run tests
+
+postman-test: ## Run the Postman collection with Newman against the local environment
+	npm run postman:local
 
 migrate-up: ## Apply all pending migrations using the migrate CLI
 	migrate -path migrations -database "$(DB_URL)" up

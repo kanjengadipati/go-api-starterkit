@@ -1,0 +1,386 @@
+{
+  "info": {
+    "name": "Pleco Smoke",
+    "_postman_id": "cb8b6924-50ba-4c08-a66c-f5ab9440f1b5",
+    "description": "Automation-friendly smoke checks for pleco-api",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const healthJson = pm.response.json();",
+                  "pm.test('health status is ok', function () {",
+                  "  pm.expect(healthJson.status).to.eql('success');",
+                  "  pm.expect(healthJson.data.status).to.eql('ok');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "Readiness",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/health/ready"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('admin login returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const loginJson = pm.response.json();",
+                  "const loginData = loginJson.data || {};",
+                  "pm.test('admin login returns tokens', function () {",
+                  "  pm.expect(loginData.access_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(loginData.refresh_token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.environment.set('access_token', loginData.access_token);",
+                  "pm.environment.set('refresh_token', loginData.refresh_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/login"
+          }
+        },
+        {
+          "name": "Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('profile returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const profileJson = pm.response.json();",
+                  "const profileData = profileJson.data || {};",
+                  "pm.test('profile contains admin email', function () {",
+                  "  pm.expect(profileData.email).to.eql(pm.environment.get('admin_email'));",
+                  "});",
+                  "pm.test('profile includes permissions array', function () {",
+                  "  pm.expect(Array.isArray(profileData.permissions)).to.eql(true);",
+                  "});",
+                  "if (profileData.id) pm.environment.set('admin_user_id', String(profileData.id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/profile"
+          }
+        },
+        {
+          "name": "Sessions",
+          "item": [
+            {
+              "name": "List Sessions",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('list sessions returns 200', function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "const sessionsJson = pm.response.json();",
+                      "pm.test('list sessions returns an array', function () {",
+                      "  pm.expect(Array.isArray(sessionsJson.data)).to.eql(true);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "X-Device-ID",
+                    "value": "{{device_id}}"
+                  }
+                ],
+                "url": "{{base_url}}/auth/sessions"
+              }
+            },
+            {
+              "name": "Logout Other Sessions",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('logout other sessions returns 200', function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "const rotateJson = pm.response.json();",
+                      "const rotateData = rotateJson.data || {};",
+                      "pm.test('logout other sessions rotates tokens', function () {",
+                      "  pm.expect(rotateData.access_token).to.be.a('string').and.not.empty;",
+                      "  pm.expect(rotateData.refresh_token).to.be.a('string').and.not.empty;",
+                      "});",
+                      "pm.environment.set('access_token', rotateData.access_token);",
+                      "pm.environment.set('refresh_token', rotateData.refresh_token);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "X-Device-ID",
+                    "value": "{{device_id}}"
+                  }
+                ],
+                "url": "{{base_url}}/auth/logout-others"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get Users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('get users returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const usersJson = pm.response.json();",
+                  "pm.test('get users returns an array', function () {",
+                  "  pm.expect(Array.isArray(usersJson.data)).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/users?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Get User By ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('get user by id returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/users/{{admin_user_id}}"
+          }
+        },
+        {
+          "name": "Get Roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('get roles returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/roles"
+          }
+        },
+        {
+          "name": "Get Permissions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('get permissions returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/permissions"
+          }
+        },
+        {
+          "name": "Get Role Permissions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('get role permissions returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/roles/{{admin_role_id}}/permissions"
+          }
+        },
+        {
+          "name": "Get Audit Logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('get audit logs returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/audit-logs?page=1&limit=10"
+          }
+        }
+      ]
+    }
+  ]
+}

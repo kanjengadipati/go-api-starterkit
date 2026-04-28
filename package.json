@@ -1,0 +1,11 @@
+{
+  "name": "pleco-api-postman-runner",
+  "private": true,
+  "scripts": {
+    "postman:local": "newman run postman/pleco.smoke.postman_collection.json --environment postman/pleco.local.postman_environment.json",
+    "postman:manual": "newman run postman/pleco.postman_collection.json --environment postman/pleco.local.postman_environment.json"
+  },
+  "devDependencies": {
+    "newman": "^6.1.3"
+  }
+}

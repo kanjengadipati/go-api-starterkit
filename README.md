@@ -826,8 +826,8 @@ go test ./...
 ### Manual Testing with Postman
 
 Included files:
-- Collection: [`pleco-api.postman_collection.json`](postman/pleco-api.postman_collection.json)
-- Environment: [`pleco-api.local.postman_environment.json`](postman/pleco-api.local.postman_environment.json)
+- Collection: [`pleco.postman_collection.json`](postman/pleco.postman_collection.json)
+- Environment: [`pleco.local.postman_environment.json`](postman/pleco.local.postman_environment.json)
 
 Recommended flow:
 
@@ -847,9 +847,38 @@ Recommended flow:
 
 Notes:
 - `Login` and `Refresh Token` update the Postman environment variables for `access_token` and `refresh_token` automatically.
+- `Logout Other Sessions` also rotates and stores fresh `access_token` and `refresh_token`.
 - `Verify Email` and `Reset Password` require manual token input unless you automate email capture.
 - Admin endpoints require an admin access token.
 - The AI investigate endpoint requires `AI_ENABLED=true` in your environment.
+
+### Automated API Checks with Newman
+
+Install the Newman dependency once:
+
+```bash
+npm install
+```
+
+Run the local collection against the checked-in environment file:
+
+```bash
+npm run postman:local
+# or
+make postman-test
+```
+
+This uses:
+- `postman/pleco.smoke.postman_collection.json`
+- `postman/pleco.local.postman_environment.json`
+
+The collection expects the API to already be running at the `base_url` configured in the environment file.
+
+For the full manual collection, including flows that need verification/reset tokens or intentionally mutate credentials:
+
+```bash
+npm run postman:manual
+```
 
 ---
 
