@@ -1,6 +1,8 @@
 # Pleco
 ## Ship your product. Let Pleco handle the auth.
 
+<img src="https://pleco-console.vercel.app/logo.png" alt="Pleco Logo" width="120" />
+
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev)
 [![Gin](https://img.shields.io/badge/Gin-HTTP%20Framework-009688)](https://gin-gonic.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-336791?logo=postgresql)](https://www.postgresql.org)
