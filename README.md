@@ -147,8 +147,18 @@ APP_BASE_URL=http://localhost:8080
 FRONTEND_URL=http://localhost:3000
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=supersecret
-SENDGRID_API_KEY=
-SENDGRID_EMAIL=
+EMAIL_PROVIDER=disabled
+EMAIL_API_KEY=
+EMAIL_API_BASE_URL=
+EMAIL_FROM=
+EMAIL_FROM_NAME=Go App
+EMAIL_REPLY_TO=
+EMAIL_TIMEOUT_SECONDS=15
+EMAIL_SMTP_HOST=
+EMAIL_SMTP_PORT=587
+EMAIL_SMTP_USERNAME=
+EMAIL_SMTP_PASSWORD=
+EMAIL_SMTP_MODE=starttls
 GOOGLE_CLIENT_ID=
 FACEBOOK_APP_ID=
 FACEBOOK_APP_SECRET=
@@ -167,6 +177,10 @@ AI_API_KEY=
 - The app validates critical configuration at startup and exits early when required values are missing.
 - `APP_BASE_URL` is used for backend-generated links such as email verification.
 - `FRONTEND_URL` is used for password reset links when you have a separate frontend.
+- `EMAIL_PROVIDER` supports `disabled`, `smtp`, and select API-based email providers.
+- `smtp` is the most flexible option and works with any standard SMTP relay.
+- `EMAIL_API_KEY`, `EMAIL_API_BASE_URL`, `EMAIL_FROM`, `EMAIL_FROM_NAME`, and `EMAIL_REPLY_TO` are the shared API-provider settings.
+- `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_USERNAME`, `EMAIL_SMTP_PASSWORD`, and `EMAIL_SMTP_MODE` are used when `EMAIL_PROVIDER=smtp`.
 - `GOOGLE_CLIENT_ID` is optional but recommended so Google token validation checks the audience claim.
 - `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` are required for Facebook social login.
 - `APPLE_CLIENT_ID` is required for Sign in with Apple token validation.

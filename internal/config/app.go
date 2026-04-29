@@ -7,8 +7,18 @@ import (
 )
 
 type EmailConfig struct {
+	Provider    string
 	APIKey      string
+	APIBaseURL  string
 	From        string
+	FromName    string
+	ReplyTo     string
+	TimeoutSeconds int
+	SMTPHost    string
+	SMTPPort    int
+	SMTPUsername string
+	SMTPPassword string
+	SMTPMode    string
 	AppBaseURL  string
 	FrontendURL string
 }
@@ -58,8 +68,18 @@ func LoadAppConfig() AppConfig {
 		AutoRunMigrations:  envBool("AUTO_RUN_MIGRATIONS"),
 		AutoRunSeeds:       envBool("AUTO_RUN_SEEDS"),
 		Email: EmailConfig{
-			APIKey:      GetEnv("SENDGRID_API_KEY", ""),
-			From:        GetEnv("SENDGRID_EMAIL", ""),
+			Provider:    strings.ToLower(GetEnv("EMAIL_PROVIDER", "disabled")),
+			APIKey:      GetEnv("EMAIL_API_KEY", ""),
+			APIBaseURL:  GetEnv("EMAIL_API_BASE_URL", ""),
+			From:        GetEnv("EMAIL_FROM", ""),
+			FromName:    GetEnv("EMAIL_FROM_NAME", "Go App"),
+			ReplyTo:     GetEnv("EMAIL_REPLY_TO", ""),
+			TimeoutSeconds: envInt("EMAIL_TIMEOUT_SECONDS", 15),
+			SMTPHost:    GetEnv("EMAIL_SMTP_HOST", ""),
+			SMTPPort:    envInt("EMAIL_SMTP_PORT", 587),
+			SMTPUsername: GetEnv("EMAIL_SMTP_USERNAME", ""),
+			SMTPPassword: GetEnv("EMAIL_SMTP_PASSWORD", ""),
+			SMTPMode:    strings.ToLower(GetEnv("EMAIL_SMTP_MODE", "starttls")),
 			AppBaseURL:  firstNonEmptyEnv("APP_BASE_URL", "RENDER_EXTERNAL_URL", "http://localhost:8080"),
 			FrontendURL: GetEnv("FRONTEND_URL", ""),
 		},
@@ -96,8 +116,36 @@ func (c AppConfig) Validate() error {
 		problems = append(problems, "PORT must be a valid number between 1 and 65535")
 	}
 
-	if (c.Email.APIKey == "") != (c.Email.From == "") {
-		problems = append(problems, "SENDGRID_API_KEY and SENDGRID_EMAIL must be set together")
+	switch c.Email.Provider {
+	case "", "disabled":
+	case "sendgrid", "resend":
+		if c.Email.APIKey == "" {
+			problems = append(problems, "EMAIL_API_KEY is required when EMAIL_PROVIDER is "+c.Email.Provider)
+		}
+		if c.Email.From == "" {
+			problems = append(problems, "EMAIL_FROM is required when EMAIL_PROVIDER is "+c.Email.Provider)
+		}
+	case "smtp":
+		if c.Email.From == "" {
+			problems = append(problems, "EMAIL_FROM is required when EMAIL_PROVIDER is smtp")
+		}
+		if c.Email.SMTPHost == "" {
+			problems = append(problems, "EMAIL_SMTP_HOST is required when EMAIL_PROVIDER is smtp")
+		}
+		if c.Email.SMTPPort < 1 || c.Email.SMTPPort > 65535 {
+			problems = append(problems, "EMAIL_SMTP_PORT must be a valid port when EMAIL_PROVIDER is smtp")
+		}
+		switch c.Email.SMTPMode {
+		case "starttls", "tls", "plain":
+		default:
+			problems = append(problems, "EMAIL_SMTP_MODE must be one of: starttls, tls, plain")
+		}
+	default:
+		problems = append(problems, "EMAIL_PROVIDER must be one of: disabled, sendgrid, resend, smtp")
+	}
+
+	if c.Email.Provider != "" && c.Email.Provider != "disabled" && c.Email.TimeoutSeconds < 1 {
+		problems = append(problems, "EMAIL_TIMEOUT_SECONDS must be greater than 0 when email is enabled")
 	}
 
 	if c.Social.FacebookAppID != "" && c.Social.FacebookAppSecret == "" {
@@ -203,6 +251,7 @@ func firstNonEmptyEnv(keys ...string) string {
 	}
 	return last
 }
+
 
 func corsAllowedOrigins() []string {
 	defaults := []string{

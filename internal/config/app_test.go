@@ -37,7 +37,8 @@ func TestAppConfigValidateRejectsPartialProviderConfiguration(t *testing.T) {
 		DatabaseURL: "postgresql://postgres:password@localhost:5432/auth_db?sslmode=disable",
 		JWTSecret:   []byte("super_secret_key_123_must_be_32_bytes_long_minimum"),
 		Email: EmailConfig{
-			APIKey: "sg-key",
+			Provider: "sendgrid",
+			APIKey:   "sg-key",
 		},
 		Social: SocialConfig{
 			FacebookAppID: "fb-app-id",
@@ -50,8 +51,50 @@ func TestAppConfigValidateRejectsPartialProviderConfiguration(t *testing.T) {
 	}
 
 	message := err.Error()
-	assertContains(t, message, "SENDGRID_API_KEY and SENDGRID_EMAIL must be set together")
+	assertContains(t, message, "EMAIL_FROM is required when EMAIL_PROVIDER is sendgrid")
 	assertContains(t, message, "FACEBOOK_APP_SECRET is required when FACEBOOK_APP_ID is set")
+}
+
+func TestAppConfigValidateRejectsUnsupportedEmailProvider(t *testing.T) {
+	cfg := AppConfig{
+		Port:        "8080",
+		DatabaseURL: "postgresql://postgres:password@localhost:5432/auth_db?sslmode=disable",
+		JWTSecret:   []byte("super_secret_key_123_must_be_32_bytes_long_minimum"),
+		Email: EmailConfig{
+			Provider: "mailgun",
+		},
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected validation error, got nil")
+	}
+
+	assertContains(t, err.Error(), "EMAIL_PROVIDER must be one of: disabled, sendgrid, resend, smtp")
+}
+
+func TestAppConfigValidateRequiresSMTPSettings(t *testing.T) {
+	cfg := AppConfig{
+		Port:        "8080",
+		DatabaseURL: "postgresql://postgres:password@localhost:5432/auth_db?sslmode=disable",
+		JWTSecret:   []byte("super_secret_key_123_must_be_32_bytes_long_minimum"),
+		Email: EmailConfig{
+			Provider: "smtp",
+			From:     "noreply@example.com",
+			SMTPHost: "",
+			SMTPPort: 0,
+			SMTPMode: "invalid",
+		},
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected validation error, got nil")
+	}
+
+	assertContains(t, err.Error(), "EMAIL_SMTP_HOST is required when EMAIL_PROVIDER is smtp")
+	assertContains(t, err.Error(), "EMAIL_SMTP_PORT must be a valid port when EMAIL_PROVIDER is smtp")
+	assertContains(t, err.Error(), "EMAIL_SMTP_MODE must be one of: starttls, tls, plain")
 }
 
 func TestAppConfigValidateRequiresAdminCredentialsWhenSeedingIsEnabled(t *testing.T) {
