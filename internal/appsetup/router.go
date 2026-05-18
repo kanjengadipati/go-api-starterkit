@@ -11,6 +11,8 @@ import (
 	"pleco-api/internal/modules/role"
 	"pleco-api/internal/modules/user"
 	"pleco-api/internal/services"
+	"pleco-api/internal/erroroptimizer"
+	"log/slog"
 
 	"gorm.io/gorm"
 
@@ -30,7 +32,14 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtSe
 	userModule := user.BuildModule(db, auditModule.Service, cacheStore)
 	userModule.Handler.PermissionSvc = permissionModule.Service
 	userModule.Handler.Cache = cacheStore
-	authModule := auth.BuildModule(db, cfg, userModule.Service, jwtService, auditModule.Service, permissionModule.Service, cacheStore)
+	
+	var errOptSvc *erroroptimizer.ErrorOptimizerService
+	if cfg.ErrorOptimization.Enabled {
+		classifier := &erroroptimizer.DefaultErrorClassifier{}
+		errOptSvc = erroroptimizer.NewErrorOptimizerService(classifier, aiService, cacheStore, db, slog.Default())
+	}
+	
+	authModule := auth.BuildModule(db, cfg, userModule.Service, jwtService, auditModule.Service, permissionModule.Service, errOptSvc, cacheStore)
 
 	tokenVersionSrc := accessTokenVersionAdapter{repo: userModule.Repository}
 	auth.SetupRoutes(api, authModule.Handler, jwtService, rateStore, tokenVersionSrc)

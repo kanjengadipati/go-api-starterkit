@@ -16,7 +16,56 @@ func NewMockProvider() *MockProvider {
 }
 
 func (p *MockProvider) Generate(ctx context.Context, input GenerateInput) (*GenerateResult, error) {
+	if strings.Contains(input.UserPrompt, "Error Code:") {
+		return generateMockErrorOptimization(input.UserPrompt)
+	}
+
 	payload := buildMockInvestigationPayload(input.UserPrompt)
+	encoded, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	return &GenerateResult{
+		Text: string(encoded),
+	}, nil
+}
+
+func generateMockErrorOptimization(prompt string) (*GenerateResult, error) {
+	// Extract the Error Code to customize the mock response
+	code := "UNKNOWN_ERROR"
+	if matches := regexp.MustCompile(`Error Code:\s+([^\n]+)`).FindStringSubmatch(prompt); len(matches) > 1 {
+		code = strings.TrimSpace(matches[1])
+	}
+
+	mockMessage := "Something went wrong."
+	if code == "AUTH_INVALID_CREDENTIALS" {
+		mockMessage = "The email or password you entered is incorrect."
+	} else if code == "AUTH_ACCOUNT_LOCKED" {
+		mockMessage = "Your account has been temporarily locked due to multiple failed login attempts."
+	}
+
+	payload := map[string]interface{}{
+		"message": mockMessage,
+		"details": "This is a mock response from the AI Error Optimizer.",
+		"suggestions": []map[string]interface{}{
+			{
+				"title":       "Reset your password",
+				"description": "If you forgot your password, you can easily reset it.",
+				"action":      "navigate",
+				"url":         "/auth/forgot-password",
+				"priority":    "primary",
+			},
+			{
+				"title":       "Try again",
+				"description": "Double check your spelling and try again.",
+				"action":      "retry",
+				"priority":    "secondary",
+			},
+		},
+		"docs_url": "/docs/errors/" + code,
+	}
+
 	encoded, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return nil, err

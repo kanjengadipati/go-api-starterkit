@@ -7,6 +7,7 @@ import (
 	"pleco-api/internal/modules/permission"
 	userModule "pleco-api/internal/modules/user"
 	"pleco-api/internal/services"
+	"pleco-api/internal/erroroptimizer"
 
 	"gorm.io/gorm"
 )
@@ -16,7 +17,16 @@ type Module struct {
 	Handler *AuthHandler
 }
 
-func BuildModule(db *gorm.DB, cfg config.AppConfig, userService *userModule.Service, jwtService *services.JWTService, auditService *audit.Service, permissionService *permission.Service, stores ...cache.Store) *Module {
+func BuildModule(
+	db *gorm.DB,
+	cfg config.AppConfig,
+	userService *userModule.Service,
+	jwtService *services.JWTService,
+	auditService *audit.Service,
+	permissionService *permission.Service,
+	errorOptimizer *erroroptimizer.ErrorOptimizerService,
+	stores ...cache.Store,
+) *Module {
 	service := NewService(db, cfg, userService, jwtService, auditService)
 	if len(stores) > 0 {
 		if impl, ok := service.(*authService); ok {
@@ -24,6 +34,7 @@ func BuildModule(db *gorm.DB, cfg config.AppConfig, userService *userModule.Serv
 		}
 	}
 	handler := NewHandler(service, permissionService)
+	handler.ErrorOptimizer = errorOptimizer
 	if len(stores) > 0 {
 		handler.Cache = stores[0]
 	}

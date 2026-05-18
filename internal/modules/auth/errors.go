@@ -1,15 +1,15 @@
 package auth
 
-import "errors"
+import "pleco-api/internal/domain"
 
 var (
-	ErrInvalidCredentials  = errors.New("invalid credentials")
-	ErrEmailNotVerified    = errors.New("please verify your email first")
-	ErrSessionNotFound     = errors.New("session not found")
-	ErrInvalidRefreshToken = errors.New("invalid refresh token")
-	ErrInvalidTokenType    = errors.New("invalid token type")
-	ErrInvalidTokenClaims  = errors.New("invalid token")
-	ErrRefreshTokenExpired = errors.New("refresh token expired")
-	ErrRefreshTokenReuse   = errors.New("refresh token reuse detected")
-	ErrAccountLocked       = errors.New("account locked due to too many failed attempts")
+	ErrInvalidCredentials  = domain.ErrInvalidCredentials
+	ErrEmailNotVerified    = domain.ErrEmailNotVerified
+	ErrSessionNotFound     = domain.ErrSessionNotFound
+	ErrInvalidRefreshToken = domain.ErrInvalidRefreshToken
+	ErrInvalidTokenType    = domain.ErrInvalidTokenType
+	ErrInvalidTokenClaims  = domain.ErrInvalidTokenClaims
+	ErrRefreshTokenExpired = domain.ErrRefreshTokenExpired
+	ErrRefreshTokenReuse   = domain.ErrRefreshTokenReuse
+	ErrAccountLocked       = domain.ErrAccountLocked
 )

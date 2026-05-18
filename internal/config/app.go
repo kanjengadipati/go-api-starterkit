@@ -42,6 +42,10 @@ type AIConfig struct {
 	TimeoutSeconds int
 }
 
+type ErrorOptimizationConfig struct {
+	Enabled bool
+}
+
 type AppConfig struct {
 	Port                     string
 	DatabaseURL              string
@@ -57,6 +61,7 @@ type AppConfig struct {
 	Email                    EmailConfig
 	Social                   SocialConfig
 	AI                       AIConfig
+	ErrorOptimization        ErrorOptimizationConfig
 }
 
 func LoadAppConfig() AppConfig {
@@ -96,6 +101,9 @@ func LoadAppConfig() AppConfig {
 			BaseURL:        GetEnv("AI_BASE_URL", ""),
 			APIKey:         GetEnv("AI_API_KEY", ""),
 			TimeoutSeconds: envInt("AI_TIMEOUT_SECONDS", 30),
+		},
+		ErrorOptimization: ErrorOptimizationConfig{
+			Enabled: envBool("ENABLE_ERROR_OPTIMIZATION"),
 		},
 	}
 }

@@ -14,12 +14,14 @@ import (
 	"pleco-api/internal/modules/permission"
 	"pleco-api/internal/modules/user"
 	"pleco-api/internal/services"
+	"pleco-api/internal/erroroptimizer"
 )
 
 type AuthHandler struct {
-	AuthService   AuthService
-	PermissionSvc *permission.Service
-	Cache         cache.Store
+	AuthService    AuthService
+	PermissionSvc  *permission.Service
+	Cache          cache.Store
+	ErrorOptimizer *erroroptimizer.ErrorOptimizerService
 }
 
 const refreshTokenCookieName = "pleco_refresh_token"
@@ -43,6 +45,35 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	user := dtoToUser(input.Name, input.Email)
 	err := h.AuthService.Register(&user, input.Password)
 	if err != nil {
+		if h.ErrorOptimizer != nil {
+			language := c.GetHeader("Accept-Language")
+			userContext := erroroptimizer.UserContext{
+				Language:  language,
+				IsNewUser: true,
+			}
+			
+			optimized, errOpt := h.ErrorOptimizer.GetOptimizedError(
+				c.Request.Context(),
+				err,
+				userContext,
+				"/auth/register",
+			)
+			if errOpt == nil && optimized != nil {
+				statusCode := http.StatusInternalServerError
+				if optimized.Code == "AUTH_WEAK_PASSWORD" {
+					statusCode = http.StatusBadRequest
+				}
+				c.JSON(statusCode, gin.H{
+					"status":      "error",
+					"code":        optimized.Code,
+					"message":     optimized.Message,
+					"details":     optimized.Details,
+					"suggestions": optimized.Suggestions,
+				})
+				return
+			}
+		}
+
 		if errors.Is(err, services.ErrWeakPassword) {
 			httpx.Error(c, http.StatusBadRequest, err.Error())
 			return
@@ -68,6 +99,31 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	tokens, err := h.AuthService.Login(input.Email, input.Password, deviceID, userAgent, ipAddress)
 	if err != nil {
+		if h.ErrorOptimizer != nil {
+			language := c.GetHeader("Accept-Language")
+			userContext := erroroptimizer.UserContext{
+				Device:   deviceID,
+				Language: language,
+			}
+			
+			optimized, errOpt := h.ErrorOptimizer.GetOptimizedError(
+				c.Request.Context(),
+				err,
+				userContext,
+				"/auth/login",
+			)
+			if errOpt == nil && optimized != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"status":      "error",
+					"code":        optimized.Code,
+					"message":     optimized.Message,
+					"details":     optimized.Details,
+					"suggestions": optimized.Suggestions,
+				})
+				return
+			}
+		}
+
 		httpx.Error(c, http.StatusUnauthorized, err.Error())
 		return
 	}
