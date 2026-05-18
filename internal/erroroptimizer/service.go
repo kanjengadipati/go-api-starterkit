@@ -191,7 +191,7 @@ func (eos *ErrorOptimizerService) logErrorOccurrence(
 	if eos.db == nil {
 		return
 	}
-	
+
 	// This should ideally be asynchronous. Using a simple goroutine for now.
 	go func() {
 		// Log the occurrence in error_analytics

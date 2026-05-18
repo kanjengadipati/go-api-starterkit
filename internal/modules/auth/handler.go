@@ -11,10 +11,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"pleco-api/internal/cache"
+	"pleco-api/internal/erroroptimizer"
 	"pleco-api/internal/modules/permission"
 	"pleco-api/internal/modules/user"
 	"pleco-api/internal/services"
-	"pleco-api/internal/erroroptimizer"
 )
 
 type AuthHandler struct {
@@ -51,7 +51,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 				Language:  language,
 				IsNewUser: true,
 			}
-			
+
 			optimized, errOpt := h.ErrorOptimizer.GetOptimizedError(
 				c.Request.Context(),
 				err,
@@ -105,7 +105,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 				Device:   deviceID,
 				Language: language,
 			}
-			
+
 			optimized, errOpt := h.ErrorOptimizer.GetOptimizedError(
 				c.Request.Context(),
 				err,

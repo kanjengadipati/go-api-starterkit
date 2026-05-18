@@ -3,11 +3,11 @@ package auth
 import (
 	"pleco-api/internal/cache"
 	"pleco-api/internal/config"
+	"pleco-api/internal/erroroptimizer"
 	"pleco-api/internal/modules/audit"
 	"pleco-api/internal/modules/permission"
 	userModule "pleco-api/internal/modules/user"
 	"pleco-api/internal/services"
-	"pleco-api/internal/erroroptimizer"
 
 	"gorm.io/gorm"
 )

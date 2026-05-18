@@ -74,7 +74,7 @@ func TestDefaultErrorClassifier_Classify(t *testing.T) {
 				}
 				return
 			}
-			
+
 			if metadata == nil {
 				t.Errorf("Classify() returned nil for error: %v", tt.err)
 				return
