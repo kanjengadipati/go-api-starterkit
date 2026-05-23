@@ -25,6 +25,7 @@ func (s *authService) Register(user *userModule.User, password string) error {
 	user.Password = hashedPassword
 	user.Role = "user"
 	user.IsVerified = false
+	user.EmailVerified = false
 	now := time.Now()
 	user.PasswordUpdatedAt = now
 	user.LastPasswordChange = &now

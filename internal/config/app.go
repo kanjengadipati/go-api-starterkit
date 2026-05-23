@@ -23,6 +23,17 @@ type EmailConfig struct {
 	FrontendURL    string
 }
 
+type WhatsAppConfig struct {
+	Provider           string
+	FonnteToken        string
+	FonnteBaseURL      string
+	CloudAccessToken   string
+	CloudPhoneNumberID string
+	CloudAPIBaseURL    string
+	CloudAPIVersion    string
+	TimeoutSeconds     int
+}
+
 type SocialProviderConfig struct {
 	ClientID     string
 	ClientSecret string
@@ -46,6 +57,14 @@ type ErrorOptimizationConfig struct {
 	Enabled bool
 }
 
+type OTPRateLimitConfig struct {
+	Requests              int
+	WindowSeconds         int
+	TargetCooldownSeconds int
+	TargetRequests        int
+	TargetWindowSeconds   int
+}
+
 type AppConfig struct {
 	Port                     string
 	DatabaseDriver           string
@@ -60,8 +79,10 @@ type AppConfig struct {
 	AutoRunMigrations        bool
 	AutoRunSeeds             bool
 	Email                    EmailConfig
+	WhatsApp                 WhatsAppConfig
 	Social                   SocialConfig
 	AI                       AIConfig
+	OTPRateLimit             OTPRateLimitConfig
 	ErrorOptimization        ErrorOptimizationConfig
 }
 
@@ -81,7 +102,7 @@ func LoadAppConfig() AppConfig {
 		AutoRunSeeds:             envBool("AUTO_RUN_SEEDS"),
 		Email: EmailConfig{
 			Provider:       strings.ToLower(GetEnv("EMAIL_PROVIDER", "disabled")),
-			APIKey:         GetEnv("EMAIL_API_KEY", ""),
+			APIKey:         firstNonEmptyEnv("EMAIL_API_KEY", "RESEND_API_KEY"),
 			APIBaseURL:     GetEnv("EMAIL_API_BASE_URL", ""),
 			From:           GetEnv("EMAIL_FROM", ""),
 			FromName:       GetEnv("EMAIL_FROM_NAME", "Go App"),
@@ -95,6 +116,16 @@ func LoadAppConfig() AppConfig {
 			AppBaseURL:     firstNonEmptyEnv("APP_BASE_URL", "RENDER_EXTERNAL_URL", "http://localhost:8080"),
 			FrontendURL:    GetEnv("FRONTEND_URL", ""),
 		},
+		WhatsApp: WhatsAppConfig{
+			Provider:           strings.ToLower(GetEnv("WA_PROVIDER", "disabled")),
+			FonnteToken:        GetEnv("FONNTE_TOKEN", ""),
+			FonnteBaseURL:      GetEnv("FONNTE_BASE_URL", "https://api.fonnte.com"),
+			CloudAccessToken:   GetEnv("WA_CLOUD_ACCESS_TOKEN", ""),
+			CloudPhoneNumberID: GetEnv("WA_CLOUD_PHONE_NUMBER_ID", ""),
+			CloudAPIBaseURL:    GetEnv("WA_CLOUD_API_BASE_URL", "https://graph.facebook.com"),
+			CloudAPIVersion:    GetEnv("WA_CLOUD_API_VERSION", "v20.0"),
+			TimeoutSeconds:     envInt("WA_TIMEOUT_SECONDS", 15),
+		},
 		Social: loadSocialConfig(),
 		AI: AIConfig{
 			Enabled:        envBool("AI_ENABLED"),
@@ -103,6 +134,13 @@ func LoadAppConfig() AppConfig {
 			BaseURL:        GetEnv("AI_BASE_URL", ""),
 			APIKey:         GetEnv("AI_API_KEY", ""),
 			TimeoutSeconds: envInt("AI_TIMEOUT_SECONDS", 30),
+		},
+		OTPRateLimit: OTPRateLimitConfig{
+			Requests:              envInt("OTP_RATE_LIMIT_REQUESTS", 5),
+			WindowSeconds:         envInt("OTP_RATE_LIMIT_WINDOW_SECONDS", 3600),
+			TargetCooldownSeconds: envInt("OTP_TARGET_COOLDOWN_SECONDS", 60),
+			TargetRequests:        envInt("OTP_TARGET_RATE_LIMIT_REQUESTS", 5),
+			TargetWindowSeconds:   envInt("OTP_TARGET_RATE_LIMIT_WINDOW_SECONDS", 3600),
 		},
 		ErrorOptimization: ErrorOptimizationConfig{
 			Enabled: envBool("ENABLE_ERROR_OPTIMIZATION"),
@@ -160,6 +198,45 @@ func (c AppConfig) Validate() error {
 
 	if c.Email.Provider != "" && c.Email.Provider != "disabled" && c.Email.TimeoutSeconds < 1 {
 		problems = append(problems, "EMAIL_TIMEOUT_SECONDS must be greater than 0 when email is enabled")
+	}
+
+	switch c.WhatsApp.Provider {
+	case "", "disabled":
+	case "fonnte":
+		if c.WhatsApp.FonnteToken == "" {
+			problems = append(problems, "FONNTE_TOKEN is required when WA_PROVIDER is fonnte")
+		}
+		if c.WhatsApp.TimeoutSeconds < 1 {
+			problems = append(problems, "WA_TIMEOUT_SECONDS must be greater than 0 when WhatsApp OTP is enabled")
+		}
+	case "whatsapp_cloud", "meta", "cloud":
+		if c.WhatsApp.CloudAccessToken == "" {
+			problems = append(problems, "WA_CLOUD_ACCESS_TOKEN is required when WA_PROVIDER is whatsapp_cloud")
+		}
+		if c.WhatsApp.CloudPhoneNumberID == "" {
+			problems = append(problems, "WA_CLOUD_PHONE_NUMBER_ID is required when WA_PROVIDER is whatsapp_cloud")
+		}
+		if c.WhatsApp.TimeoutSeconds < 1 {
+			problems = append(problems, "WA_TIMEOUT_SECONDS must be greater than 0 when WhatsApp OTP is enabled")
+		}
+	default:
+		problems = append(problems, "WA_PROVIDER must be one of: disabled, fonnte, whatsapp_cloud")
+	}
+
+	if c.OTPRateLimit.Requests < 0 {
+		problems = append(problems, "OTP_RATE_LIMIT_REQUESTS must be greater than 0")
+	}
+	if c.OTPRateLimit.WindowSeconds < 0 {
+		problems = append(problems, "OTP_RATE_LIMIT_WINDOW_SECONDS must be greater than 0")
+	}
+	if c.OTPRateLimit.TargetCooldownSeconds < 0 {
+		problems = append(problems, "OTP_TARGET_COOLDOWN_SECONDS must be greater than or equal to 0")
+	}
+	if c.OTPRateLimit.TargetRequests < 0 {
+		problems = append(problems, "OTP_TARGET_RATE_LIMIT_REQUESTS must be greater than 0")
+	}
+	if c.OTPRateLimit.TargetWindowSeconds < 0 {
+		problems = append(problems, "OTP_TARGET_RATE_LIMIT_WINDOW_SECONDS must be greater than 0")
 	}
 
 	for _, p := range c.Social.ActiveProviders {

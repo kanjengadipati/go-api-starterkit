@@ -60,6 +60,8 @@ FRONTEND_URL=http://localhost:3000
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ADMIN_EMAIL=admin@mail.com
 ADMIN_PASSWORD=admin123
+EMAIL_PROVIDER=disabled
+WA_PROVIDER=disabled
 ```
 
 Notes:
@@ -68,6 +70,7 @@ Notes:
 - `CORS_ALLOWED_ORIGINS` must contain the exact browser origins that will call the API.
 - `FRONTEND_URL` is used in flows like password reset links.
 - `ADMIN_EMAIL` and `ADMIN_PASSWORD` are especially useful when seeding a fresh environment.
+- For passwordless OTP, set `EMAIL_PROVIDER=resend` or `smtp` for email delivery, or `WA_PROVIDER=fonnte` with `FONNTE_TOKEN` for WhatsApp delivery.
 
 ## 4. Run locally with Go
 

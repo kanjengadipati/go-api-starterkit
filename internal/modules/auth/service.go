@@ -13,6 +13,8 @@ import (
 	permissionless "pleco-api/internal/modules/social"
 	tokenModule "pleco-api/internal/modules/token"
 	userModule "pleco-api/internal/modules/user"
+	"pleco-api/internal/otp"
+	"pleco-api/internal/providers"
 	"pleco-api/internal/services"
 
 	"gorm.io/gorm"
@@ -64,6 +66,8 @@ type AuthService interface {
 	ResetPassword(token string, newPassword string) error
 	SocialLogin(provider string, idToken string, deviceID, userAgent, ipAddress string) (*AuthTokens, error)
 	GetSocialAccount(userID uint, provider string) (*permissionless.SocialAccount, error)
+	RequestOTP(ctx context.Context, channel, target, ipAddress, userAgent string) error
+	VerifyOTP(ctx context.Context, input VerifyOTPInput) (*AuthTokens, error)
 }
 
 type authService struct {
@@ -72,6 +76,8 @@ type authService struct {
 	RefreshTokenRepo      tokenModule.RefreshTokenRepository
 	EmailVerificationRepo tokenModule.EmailVerificationRepository
 	SocialRepo            permissionless.Repository
+	OTPRepo               otpRepository
+	OTPChannels           map[string]otp.Channel
 	JWT                   *services.JWTService
 	EmailSvc              services.EmailService
 	AuditSvc              *audit.Service
@@ -159,6 +165,10 @@ func NewAuthService(
 		AuditSvc:              auditSvc,
 		Cfg:                   cfg,
 	}
+	if db != nil {
+		s.OTPRepo = newOTPRepository(db)
+	}
+	s.OTPChannels = providers.NewOTPChannels(cfg)
 	for _, opt := range opts {
 		if opt != nil {
 			opt(s)

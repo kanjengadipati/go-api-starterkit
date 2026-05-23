@@ -78,6 +78,45 @@ func TestAppConfigValidateRejectsUnsupportedEmailProvider(t *testing.T) {
 	assertContains(t, err.Error(), "EMAIL_PROVIDER must be one of: disabled, sendgrid, resend, smtp")
 }
 
+func TestAppConfigValidateRequiresFonnteToken(t *testing.T) {
+	cfg := AppConfig{
+		Port:        "8080",
+		DatabaseURL: "postgresql://postgres:password@localhost:5432/auth_db?sslmode=disable",
+		JWTSecret:   []byte("super_secret_key_123_must_be_32_bytes_long_minimum"),
+		WhatsApp: WhatsAppConfig{
+			Provider:       "fonnte",
+			TimeoutSeconds: 15,
+		},
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected validation error, got nil")
+	}
+
+	assertContains(t, err.Error(), "FONNTE_TOKEN is required when WA_PROVIDER is fonnte")
+}
+
+func TestAppConfigValidateRequiresWhatsAppCloudSettings(t *testing.T) {
+	cfg := AppConfig{
+		Port:        "8080",
+		DatabaseURL: "postgresql://postgres:password@localhost:5432/auth_db?sslmode=disable",
+		JWTSecret:   []byte("super_secret_key_123_must_be_32_bytes_long_minimum"),
+		WhatsApp: WhatsAppConfig{
+			Provider:       "whatsapp_cloud",
+			TimeoutSeconds: 15,
+		},
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected validation error, got nil")
+	}
+
+	assertContains(t, err.Error(), "WA_CLOUD_ACCESS_TOKEN is required when WA_PROVIDER is whatsapp_cloud")
+	assertContains(t, err.Error(), "WA_CLOUD_PHONE_NUMBER_ID is required when WA_PROVIDER is whatsapp_cloud")
+}
+
 func TestAppConfigValidateRejectsUnsupportedDatabaseDriver(t *testing.T) {
 	cfg := AppConfig{
 		Port:           "8080",

@@ -99,10 +99,11 @@ func (s *authService) SocialLogin(provider string, token string, deviceID, userA
 			}
 
 			user = &userModule.User{
-				Email:      profile.Email,
-				Name:       profile.Name,
-				Role:       "user",
-				IsVerified: true,
+				Email:         profile.Email,
+				Name:          profile.Name,
+				Role:          "user",
+				IsVerified:    true,
+				EmailVerified: true,
 			}
 
 			if err := userRepo.Create(user); err != nil {

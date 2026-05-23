@@ -10,6 +10,7 @@ import (
 type Repository interface {
 	Create(user *User) error
 	FindByEmail(email string) (*User, error)
+	FindByPhone(phone string) (*User, error)
 	FindByID(id uint) (*User, error)
 	Update(user *User) error
 	UpdateLastLogin(id uint, at time.Time) error
@@ -30,12 +31,24 @@ func NewRepository(db *gorm.DB) Repository {
 }
 
 func (r *GormRepository) Create(user *User) error {
+	if strings.TrimSpace(user.PhoneNumber) == "" {
+		return r.db.Omit("phone_number").Create(user).Error
+	}
 	return r.db.Create(user).Error
 }
 
 func (r *GormRepository) FindByEmail(email string) (*User, error) {
 	var user User
 	err := r.db.Where("email = ?", email).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, err
+}
+
+func (r *GormRepository) FindByPhone(phone string) (*User, error) {
+	var user User
+	err := r.db.Where("phone_number = ?", phone).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -52,12 +65,20 @@ func (r *GormRepository) FindByID(id uint) (*User, error) {
 }
 
 func (r *GormRepository) Update(user *User) error {
+	phoneNumber := interface{}(user.PhoneNumber)
+	if strings.TrimSpace(user.PhoneNumber) == "" {
+		phoneNumber = nil
+	}
+
 	updates := map[string]interface{}{
 		"name":                 user.Name,
 		"email":                user.Email,
+		"phone_number":         phoneNumber,
 		"role":                 user.Role,
 		"role_id":              user.RoleID,
 		"is_verified":          user.IsVerified,
+		"phone_verified":       user.PhoneVerified,
+		"email_verified":       user.EmailVerified,
 		"password_updated_at":  user.PasswordUpdatedAt,
 		"last_login_at":        user.LastLoginAt,
 		"last_password_change": user.LastPasswordChange,
@@ -125,15 +146,15 @@ func (r *GormRepository) WithTx(tx *gorm.DB) Repository {
 
 func userTextSearchCondition(db *gorm.DB) string {
 	if db.Dialector.Name() == "postgres" {
-		return "name ILIKE ? OR email ILIKE ?"
+		return "name ILIKE ? OR email ILIKE ? OR phone_number ILIKE ?"
 	}
-	return "LOWER(name) LIKE ? OR LOWER(email) LIKE ?"
+	return "LOWER(name) LIKE ? OR LOWER(email) LIKE ? OR LOWER(phone_number) LIKE ?"
 }
 
 func userTextSearchValues(db *gorm.DB, like string) []interface{} {
 	if db.Dialector.Name() == "postgres" {
-		return []interface{}{like, like}
+		return []interface{}{like, like, like}
 	}
 	lowerLike := strings.ToLower(like)
-	return []interface{}{lowerLike, lowerLike}
+	return []interface{}{lowerLike, lowerLike, lowerLike}
 }

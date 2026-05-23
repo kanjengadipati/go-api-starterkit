@@ -124,6 +124,72 @@ paths:
               schema:
                 $ref: '#/components/schemas/EnvelopeError'
 
+  /auth/request-otp:
+    post:
+      tags: [Auth]
+      summary: Request a passwordless OTP
+      description: Sends an OTP through the configured WhatsApp or email provider.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestOTPRequest'
+      responses:
+        '200':
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeMessage'
+        '400':
+          description: Invalid target, unsupported channel, or provider failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '429':
+          description: OTP rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /auth/verify-otp:
+    post:
+      tags: [Auth]
+      summary: Verify a passwordless OTP
+      parameters:
+        - in: header
+          name: X-Device-ID
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOTPRequest'
+      responses:
+        '200':
+          description: OTP verified and session created
+          headers:
+            Set-Cookie:
+              description: HttpOnly refresh-token cookie named `pleco_refresh_token`
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAccessToken'
+        '401':
+          description: Invalid or expired OTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
   /auth/profile:
     get:
       tags: [Auth]
@@ -1076,6 +1142,36 @@ components:
         password:
           type: string
           format: password
+    RequestOTPRequest:
+      type: object
+      required: [channel, target]
+      properties:
+        channel:
+          type: string
+          enum: [whatsapp, email]
+        target:
+          type: string
+          example: '+628123456789'
+    VerifyOTPRequest:
+      type: object
+      required: [channel, target, otp]
+      properties:
+        channel:
+          type: string
+          enum: [whatsapp, email]
+        target:
+          type: string
+          example: '+628123456789'
+        otp:
+          type: string
+          minLength: 6
+          maxLength: 6
+          example: '123456'
+        device_name:
+          type: string
+          example: Chrome macOS
+        trusted_device:
+          type: boolean
     RefreshRequest:
       type: object
       properties:

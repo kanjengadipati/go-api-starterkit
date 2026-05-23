@@ -6,10 +6,13 @@ type UserResponse struct {
 	ID                 uint                 `json:"id"`
 	Name               string               `json:"name"`
 	Email              string               `json:"email"`
+	PhoneNumber        string               `json:"phone_number,omitempty"`
 	Role               string               `json:"role"`
 	RoleID             uint                 `json:"role_id"`
 	RoleDetails        *RoleDetailsResponse `json:"role_details,omitempty"`
 	IsVerified         bool                 `json:"is_verified"`
+	PhoneVerified      bool                 `json:"phone_verified"`
+	EmailVerified      bool                 `json:"email_verified"`
 	LastLoginAt        *time.Time           `json:"last_login_at,omitempty"`
 	LastPasswordChange *time.Time           `json:"last_password_change_at,omitempty"`
 }
@@ -41,7 +44,8 @@ type UpdateUserRequest struct {
 }
 
 type UpdateProfileRequest struct {
-	Name string `json:"name" binding:"required,min=3"`
+	Name        string `json:"name" binding:"required,min=3"`
+	PhoneNumber string `json:"phone_number" binding:"omitempty,e164"`
 }
 
 type ChangePasswordRequest struct {
@@ -51,12 +55,15 @@ type ChangePasswordRequest struct {
 
 func ToUserResponse(user User) UserResponse {
 	response := UserResponse{
-		ID:         user.ID,
-		Name:       user.Name,
-		Email:      user.Email,
-		Role:       user.Role,
-		RoleID:     user.RoleID,
-		IsVerified: user.IsVerified,
+		ID:            user.ID,
+		Name:          user.Name,
+		Email:         user.Email,
+		PhoneNumber:   user.PhoneNumber,
+		Role:          user.Role,
+		RoleID:        user.RoleID,
+		IsVerified:    user.IsVerified,
+		PhoneVerified: user.PhoneVerified,
+		EmailVerified: user.EmailVerified,
 	}
 	response.LastLoginAt = user.LastLoginAt
 	response.LastPasswordChange = user.LastPasswordChange

@@ -133,6 +133,7 @@ func (s *stubRefreshTokenRepo) WithTx(_ *gorm.DB) token.RefreshTokenRepository {
 type stubUserRepo struct {
 	create          func(*user.User) error
 	findByEmail     func(string) (*user.User, error)
+	findByPhone     func(string) (*user.User, error)
 	findByID        func(uint) (*user.User, error)
 	update          func(*user.User) error
 	updateLastLogin func(uint, time.Time) error
@@ -147,6 +148,12 @@ func (s *stubUserRepo) Create(u *user.User) error {
 func (s *stubUserRepo) FindByEmail(email string) (*user.User, error) {
 	if s.findByEmail != nil {
 		return s.findByEmail(email)
+	}
+	return nil, nil
+}
+func (s *stubUserRepo) FindByPhone(phone string) (*user.User, error) {
+	if s.findByPhone != nil {
+		return s.findByPhone(phone)
 	}
 	return nil, nil
 }
@@ -289,6 +296,74 @@ func TestLogin_Success(t *testing.T) {
 	assert.Equal(t, "abc", data["access_token"])
 	assert.Nil(t, data["refresh_token"])
 	assertRefreshCookie(t, w.Result().Cookies())
+}
+
+func TestRequestOTP_Success(t *testing.T) {
+	mockService := new(mocks.AuthService)
+	handler := auth.AuthHandler{AuthService: mockService}
+
+	body := `{"channel":"whatsapp","target":"+628123456789"}`
+	mockService.On(
+		"RequestOTP",
+		mock.Anything,
+		"whatsapp",
+		"+628123456789",
+		mock.Anything,
+		mock.Anything,
+	).Return(nil)
+
+	c, w := setupTest()
+	req := httptest.NewRequest(http.MethodPost, "/request-otp", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	c.Request = req
+
+	handler.RequestOTP(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "success", bodyMap["status"])
+	assert.Equal(t, "OTP sent successfully", bodyMap["message"])
+	mockService.AssertExpectations(t)
+}
+
+func TestVerifyOTP_Success(t *testing.T) {
+	mockService := new(mocks.AuthService)
+	handler := auth.AuthHandler{AuthService: mockService}
+
+	body := `{"channel":"email","target":"test@mail.com","otp":"123456","device_name":"Chrome macOS","trusted_device":true}`
+	mockService.On(
+		"VerifyOTP",
+		mock.Anything,
+		mock.MatchedBy(func(input auth.VerifyOTPInput) bool {
+			return input.Channel == "email" &&
+				input.Target == "test@mail.com" &&
+				input.OTP == "123456" &&
+				input.DeviceID == "web" &&
+				input.DeviceName == "Chrome macOS" &&
+				input.TrustedDevice
+		}),
+	).Return(&auth.AuthTokens{
+		AccessToken:  "otp_access",
+		RefreshToken: "otp_refresh",
+	}, nil)
+
+	c, w := setupTest()
+	req := httptest.NewRequest(http.MethodPost, "/verify-otp", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Device-ID", "web")
+	c.Request = req
+
+	handler.VerifyOTP(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "OTP verified", bodyMap["message"])
+	data, ok := bodyMap["data"].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, "otp_access", data["access_token"])
+	assert.Nil(t, data["refresh_token"])
+	assertRefreshCookie(t, w.Result().Cookies())
+	mockService.AssertExpectations(t)
 }
 
 func TestLogout_Success(t *testing.T) {

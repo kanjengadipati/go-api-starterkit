@@ -80,6 +80,7 @@ func (s *authService) VerifyEmail(token string) error {
 	}
 
 	user.IsVerified = true
+	user.EmailVerified = true
 	if err := s.runVerificationTx(func(userRepo userModule.Repository, emailRepo emailVerificationRepositoryTx) error {
 		if err := userRepo.Update(user); err != nil {
 			return err

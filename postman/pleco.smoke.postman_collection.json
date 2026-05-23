@@ -139,6 +139,78 @@
           }
         },
         {
+          "name": "Request OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('request otp returns success or provider error', function () {",
+                  "  pm.expect([200, 400, 429]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"email\",\n  \"target\": \"{{otp_email}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/request-otp"
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('verify otp returns expected auth status', function () {",
+                  "  pm.expect([200, 401, 422]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const data = (pm.response.json().data || {});",
+                  "  pm.environment.set('access_token', data.access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"email\",\n  \"target\": \"{{otp_email}}\",\n  \"otp\": \"{{otp_code}}\",\n  \"device_name\": \"Postman\",\n  \"trusted_device\": true\n}"
+            },
+            "url": "{{base_url}}/auth/verify-otp"
+          }
+        },
+        {
           "name": "Sessions",
           "item": [
             {

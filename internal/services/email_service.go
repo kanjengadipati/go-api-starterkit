@@ -23,6 +23,7 @@ import (
 type EmailService interface {
 	SendVerificationEmail(toEmail, token string) error
 	SendPasswordReset(toEmail, token string) error
+	SendOTP(toEmail, code string, expiresIn time.Duration) error
 }
 
 type emailService struct {
@@ -94,6 +95,18 @@ func (s *emailService) SendPasswordReset(toEmail string, token string) error {
 	`, link)
 
 	return s.sendEmail(toEmail, "Password Reset Request", plainText, htmlContent)
+}
+
+func (s *emailService) SendOTP(toEmail, code string, expiresIn time.Duration) error {
+	plainText := fmt.Sprintf("Your verification code is:\n\n%s\n\nExpires in %.0f minutes.\n\nDo not share this code.", code, expiresIn.Minutes())
+	htmlContent := fmt.Sprintf(`
+		<strong>Your Pleco verification code</strong><br>
+		<p style="font-size:24px;letter-spacing:6px"><strong>%s</strong></p>
+		<p>Expires in %.0f minutes.</p>
+		<p>Do not share this code.</p>
+	`, code, expiresIn.Minutes())
+
+	return s.sendEmail(toEmail, "Your Pleco Verification Code", plainText, htmlContent)
 }
 
 func (s *emailService) sendEmail(toEmail, subject, plainText, htmlContent string) error {

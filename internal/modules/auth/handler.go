@@ -42,7 +42,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user := dtoToUser(input.Name, input.Email)
+	user := dtoToUser(input.Name, input.Email, input.PhoneNumber)
 	err := h.AuthService.Register(&user, input.Password)
 	if err != nil {
 		if h.ErrorOptimizer != nil {
@@ -130,6 +130,60 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	setRefreshTokenCookie(c, tokens.RefreshToken)
 	httpx.Success(c, http.StatusOK, "Login success", accessTokenResponse{AccessToken: tokens.AccessToken}, nil)
+}
+
+func (h *AuthHandler) RequestOTP(c *gin.Context) {
+	var input RequestOTPRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		httpx.ValidationError(c, httpx.FormatValidationError(err))
+		return
+	}
+
+	err := h.AuthService.RequestOTP(c.Request.Context(), input.Channel, input.Target, c.ClientIP(), c.GetHeader("User-Agent"))
+	if err != nil {
+		status := http.StatusBadRequest
+		message := "Unable to send OTP"
+		if errors.Is(err, ErrOTPRateLimited) {
+			status = http.StatusTooManyRequests
+			message = "Too many OTP requests. Please try again later."
+		}
+		httpx.Error(c, status, message)
+		return
+	}
+
+	httpx.Success(c, http.StatusOK, "OTP sent successfully", nil, nil)
+}
+
+func (h *AuthHandler) VerifyOTP(c *gin.Context) {
+	var input VerifyOTPRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		httpx.ValidationError(c, httpx.FormatValidationError(err))
+		return
+	}
+
+	deviceID := c.GetHeader("X-Device-ID")
+	userAgent := c.GetHeader("User-Agent")
+	if input.DeviceName == "" {
+		input.DeviceName = deviceID
+	}
+
+	tokens, err := h.AuthService.VerifyOTP(c.Request.Context(), VerifyOTPInput{
+		Channel:       input.Channel,
+		Target:        input.Target,
+		OTP:           input.OTP,
+		DeviceID:      deviceID,
+		DeviceName:    input.DeviceName,
+		TrustedDevice: input.TrustedDevice,
+		UserAgent:     userAgent,
+		IPAddress:     c.ClientIP(),
+	})
+	if err != nil {
+		httpx.Error(c, http.StatusUnauthorized, "Invalid or expired OTP")
+		return
+	}
+
+	setRefreshTokenCookie(c, tokens.RefreshToken)
+	httpx.Success(c, http.StatusOK, "OTP verified", accessTokenResponse{AccessToken: tokens.AccessToken}, nil)
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
@@ -293,12 +347,15 @@ func (h *AuthHandler) Profile(c *gin.Context) {
 	permissions, _ := h.PermissionSvc.ListRolePermissionsByName(user.Role)
 
 	response := profileResponse{
-		ID:          user.ID,
-		Name:        user.Name,
-		Email:       user.Email,
-		Role:        user.Role,
-		IsVerified:  user.IsVerified,
-		Permissions: permissions,
+		ID:            user.ID,
+		Name:          user.Name,
+		Email:         user.Email,
+		PhoneNumber:   user.PhoneNumber,
+		Role:          user.Role,
+		IsVerified:    user.IsVerified,
+		PhoneVerified: user.PhoneVerified,
+		EmailVerified: user.EmailVerified,
+		Permissions:   permissions,
 	}
 	if h.Cache != nil {
 		_ = h.Cache.SetJSON(context.Background(), fmt.Sprintf("user:profile:%d", userID), response, 5*time.Minute)
@@ -308,12 +365,15 @@ func (h *AuthHandler) Profile(c *gin.Context) {
 }
 
 type profileResponse struct {
-	ID          uint     `json:"id"`
-	Name        string   `json:"name"`
-	Email       string   `json:"email"`
-	Role        string   `json:"role"`
-	IsVerified  bool     `json:"is_verified"`
-	Permissions []string `json:"permissions"`
+	ID            uint     `json:"id"`
+	Name          string   `json:"name"`
+	Email         string   `json:"email"`
+	PhoneNumber   string   `json:"phone_number,omitempty"`
+	Role          string   `json:"role"`
+	IsVerified    bool     `json:"is_verified"`
+	PhoneVerified bool     `json:"phone_verified"`
+	EmailVerified bool     `json:"email_verified"`
+	Permissions   []string `json:"permissions"`
 }
 
 func (h *AuthHandler) VerifyEmail(c *gin.Context) {
@@ -452,11 +512,12 @@ func (h *AuthHandler) SocialAccount(c *gin.Context) {
 	httpx.Success(c, http.StatusOK, "Social account fetched", response, nil)
 }
 
-func dtoToUser(name, email string) user.User {
+func dtoToUser(name, email, phoneNumber string) user.User {
 	return user.User{
-		Name:  name,
-		Email: email,
-		Role:  "user",
+		Name:        name,
+		Email:       email,
+		PhoneNumber: phoneNumber,
+		Role:        "user",
 	}
 }
 

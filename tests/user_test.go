@@ -38,6 +38,9 @@ func (s *stubUserRepository) FindByEmail(email string) (*user.User, error) {
 	}
 	return nil, gorm.ErrRecordNotFound
 }
+func (s *stubUserRepository) FindByPhone(_ string) (*user.User, error) {
+	return nil, gorm.ErrRecordNotFound
+}
 func (s *stubUserRepository) FindByID(id uint) (*user.User, error) {
 	if s.findByID != nil {
 		return s.findByID(id)

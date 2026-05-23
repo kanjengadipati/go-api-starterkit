@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	context "context"
+
 	auth "pleco-api/internal/modules/auth"
 	social "pleco-api/internal/modules/social"
 	user "pleco-api/internal/modules/user"
@@ -208,6 +210,17 @@ func (_m *AuthService) Register(in *user.User, password string) error {
 	return ret.Error(0)
 }
 
+func (_m *AuthService) RequestOTP(ctx context.Context, channel string, target string, ipAddress string, userAgent string) error {
+	ret := _m.Called(ctx, channel, target, ipAddress, userAgent)
+	if len(ret) == 0 {
+		panic("no return value specified for RequestOTP")
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) error); ok {
+		return rf(ctx, channel, target, ipAddress, userAgent)
+	}
+	return ret.Error(0)
+}
+
 func (_m *AuthService) ResendVerification(email string) error {
 	ret := _m.Called(email)
 	if len(ret) == 0 {
@@ -262,6 +275,29 @@ func (_m *AuthService) VerifyEmail(token string) error {
 		return rf(token)
 	}
 	return ret.Error(0)
+}
+
+func (_m *AuthService) VerifyOTP(ctx context.Context, input auth.VerifyOTPInput) (*auth.AuthTokens, error) {
+	ret := _m.Called(ctx, input)
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyOTP")
+	}
+	var r0 *auth.AuthTokens
+	if rf, ok := ret.Get(0).(func(context.Context, auth.VerifyOTPInput) (*auth.AuthTokens, error)); ok {
+		return rf(ctx, input)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, auth.VerifyOTPInput) *auth.AuthTokens); ok {
+		r0 = rf(ctx, input)
+	} else if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*auth.AuthTokens)
+	}
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, auth.VerifyOTPInput) error); ok {
+		r1 = rf(ctx, input)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 func NewAuthService(t interface {

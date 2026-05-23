@@ -170,6 +170,11 @@ APP_BASE_URL=http://localhost:8080
 FRONTEND_URL=http://localhost:3000
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=supersecret
+AUTO_RUN_MIGRATIONS=false
+AUTO_RUN_SEEDS=false
+DB_MAX_OPEN_CONNS=5
+DB_MAX_IDLE_CONNS=2
+DB_CONN_MAX_LIFETIME_MINUTES=30
 EMAIL_PROVIDER=disabled
 EMAIL_API_KEY=
 EMAIL_API_BASE_URL=
@@ -182,6 +187,19 @@ EMAIL_SMTP_PORT=587
 EMAIL_SMTP_USERNAME=
 EMAIL_SMTP_PASSWORD=
 EMAIL_SMTP_MODE=starttls
+WA_PROVIDER=disabled
+FONNTE_TOKEN=
+FONNTE_BASE_URL=https://api.fonnte.com
+WA_CLOUD_ACCESS_TOKEN=
+WA_CLOUD_PHONE_NUMBER_ID=
+WA_CLOUD_API_BASE_URL=https://graph.facebook.com
+WA_CLOUD_API_VERSION=v20.0
+WA_TIMEOUT_SECONDS=15
+OTP_RATE_LIMIT_REQUESTS=5
+OTP_RATE_LIMIT_WINDOW_SECONDS=3600
+OTP_TARGET_COOLDOWN_SECONDS=60
+OTP_TARGET_RATE_LIMIT_REQUESTS=5
+OTP_TARGET_RATE_LIMIT_WINDOW_SECONDS=3600
 REDIS_URL=
 REDIS_HOST=
 REDIS_PORT=6379
@@ -212,10 +230,15 @@ AI_TIMEOUT_SECONDS=30
 - The app validates critical configuration at startup and exits early when required values are missing.
 - `APP_BASE_URL` is used for backend-generated links such as email verification.
 - `FRONTEND_URL` is used for password reset links when you have a separate frontend.
-- `EMAIL_PROVIDER` supports `disabled`, `smtp`, and select API-based email providers.
+- `EMAIL_PROVIDER` supports `disabled`, `smtp`, `sendgrid`, and `resend`.
 - `smtp` is the most flexible option and works with any standard SMTP relay.
 - `EMAIL_API_KEY`, `EMAIL_API_BASE_URL`, `EMAIL_FROM`, `EMAIL_FROM_NAME`, and `EMAIL_REPLY_TO` are the shared API-provider settings.
 - `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_USERNAME`, `EMAIL_SMTP_PASSWORD`, and `EMAIL_SMTP_MODE` are used when `EMAIL_PROVIDER=smtp`.
+- `WA_PROVIDER` supports `disabled`, `fonnte`, and `whatsapp_cloud` for WhatsApp OTP delivery.
+- `FONNTE_TOKEN`, `FONNTE_BASE_URL`, and `WA_TIMEOUT_SECONDS` configure Fonnte WhatsApp OTP delivery.
+- `WA_CLOUD_ACCESS_TOKEN`, `WA_CLOUD_PHONE_NUMBER_ID`, `WA_CLOUD_API_BASE_URL`, and `WA_CLOUD_API_VERSION` configure Meta WhatsApp Cloud API delivery.
+- `OTP_RATE_LIMIT_REQUESTS` and `OTP_RATE_LIMIT_WINDOW_SECONDS` configure the route-level `/auth/request-otp` limit. Defaults are 5 requests per 3600 seconds.
+- `OTP_TARGET_COOLDOWN_SECONDS`, `OTP_TARGET_RATE_LIMIT_REQUESTS`, and `OTP_TARGET_RATE_LIMIT_WINDOW_SECONDS` configure per-target OTP limits. Defaults are a 60-second cooldown and 5 requests per 3600 seconds.
 - `SOCIAL_ACTIVE_PROVIDERS` enables configured providers such as `google,facebook,apple`.
 - `SOCIAL_GOOGLE_CLIENT_ID`, `SOCIAL_FACEBOOK_CLIENT_ID`, and `SOCIAL_APPLE_CLIENT_ID` are used for provider audience validation.
 - `SOCIAL_FACEBOOK_CLIENT_SECRET` is required for Facebook token inspection when Facebook is active.
@@ -404,7 +427,9 @@ POST /auth/admin/audit-logs/investigations
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/auth/register` | Register a new user |
-| POST | `/auth/login` | Login, receive an access token, and set the refresh cookie |
+| POST | `/auth/login` | Login with email/password, receive an access token, and set the refresh cookie |
+| POST | `/auth/request-otp` | Request passwordless OTP via WhatsApp or email |
+| POST | `/auth/verify-otp` | Verify OTP, auto-register when needed, and create a session |
 | POST | `/auth/refresh` | Refresh access token using the refresh cookie |
 | GET | `/auth/verify` | Verify email address |
 | POST | `/auth/resend-verification` | Resend verification email |
@@ -517,6 +542,40 @@ The response also sets `Set-Cookie: pleco_refresh_token=...; HttpOnly; Secure; S
   }
 }
 ```
+
+### Passwordless OTP Login
+
+Pleco supports OTP login through pluggable delivery channels. Current channels are `whatsapp` and `email`; providers are selected through environment variables, so the auth layer only calls the configured channel.
+
+Request an OTP:
+
+```http
+POST /auth/request-otp
+Content-Type: application/json
+
+{
+  "channel": "whatsapp",
+  "target": "+628123456789"
+}
+```
+
+Verify the OTP:
+
+```http
+POST /auth/verify-otp
+Content-Type: application/json
+X-Device-ID: web
+
+{
+  "channel": "whatsapp",
+  "target": "+628123456789",
+  "otp": "123456",
+  "device_name": "Chrome macOS",
+  "trusted_device": true
+}
+```
+
+Successful verification returns an access token and sets the `pleco_refresh_token` HttpOnly cookie. If the target does not exist yet, Pleco auto-creates a user and marks `phone_verified` or `email_verified` based on the channel. OTP codes are hashed, expire after 5 minutes, are consumed after successful verification, and are guarded by cooldown, hourly target limits, max attempts, and audit logs.
 
 ### Profile
 

@@ -42,7 +42,7 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtSe
 	authModule := auth.BuildModule(db, cfg, userModule.Service, jwtService, auditModule.Service, permissionModule.Service, errOptSvc, cacheStore)
 
 	tokenVersionSrc := accessTokenVersionAdapter{repo: userModule.Repository}
-	auth.SetupRoutes(api, authModule.Handler, jwtService, rateStore, tokenVersionSrc)
+	auth.SetupRoutes(api, authModule.Handler, jwtService, rateStore, tokenVersionSrc, cfg)
 	user.SetupRoutes(api, userModule.Handler, jwtService, permissionModule.Service, tokenVersionSrc)
 	audit.SetupRoutes(api, auditModule.Handler, jwtService, permissionModule.Service, tokenVersionSrc)
 	role.SetupRoutes(api, roleModule.Handler, jwtService, permissionModule.Service, tokenVersionSrc)
