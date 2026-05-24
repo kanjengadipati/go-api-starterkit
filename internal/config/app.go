@@ -148,7 +148,7 @@ func LoadAppConfig() AppConfig {
 	}
 }
 
-func (c AppConfig) Validate() error {
+func (c *AppConfig) Validate() error {
 	var problems []string
 
 	if c.DatabaseURL == "" {
