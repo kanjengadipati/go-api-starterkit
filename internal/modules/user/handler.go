@@ -47,7 +47,7 @@ func (h *Handler) GetAllUsers(c *gin.Context) {
 
 	users, total, err := h.UserService.GetAllUsers(page, limit, search, role)
 	if err != nil {
-		httpx.Error(c, 500, "Failed to fetch users")
+		httpx.ErrorWithCode(c, 500, httpx.ErrCodeInternalError, "Failed to fetch roles")
 		return
 	}
 
@@ -61,13 +61,13 @@ func (h *Handler) GetAllUsers(c *gin.Context) {
 func (h *Handler) GetUserByID(c *gin.Context) {
 	id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		httpx.Error(c, 400, "Invalid user id")
+		httpx.ErrorWithCode(c, 400, httpx.ErrCodeInternalError, "Invalid user id")
 		return
 	}
 
 	user, err := h.UserService.GetUserByID(uint(id64))
 	if err != nil {
-		httpx.Error(c, 404, "User not found")
+		httpx.ErrorWithCode(c, 404, httpx.ErrCodeInternalError, "User not found")
 		return
 	}
 
@@ -77,7 +77,7 @@ func (h *Handler) GetUserByID(c *gin.Context) {
 func (h *Handler) GetUserPermissions(c *gin.Context) {
 	id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		httpx.Error(c, 400, "Invalid user id")
+		httpx.ErrorWithCode(c, 400, httpx.ErrCodeInternalError, "Invalid user id")
 		return
 	}
 	userID := uint(id64)
@@ -93,13 +93,13 @@ func (h *Handler) GetUserPermissions(c *gin.Context) {
 
 	user, err := h.UserService.GetUserByID(userID)
 	if err != nil {
-		httpx.Error(c, 404, "User not found")
+		httpx.ErrorWithCode(c, 404, httpx.ErrCodeInternalError, "User not found")
 		return
 	}
 
 	permissions, err := h.PermissionSvc.ListRolePermissionsByName(user.Role)
 	if err != nil {
-		httpx.Error(c, 500, "Failed to fetch user permissions")
+		httpx.ErrorWithCode(c, 500, httpx.ErrCodeInternalError, "Failed to fetch permissions")
 		return
 	}
 
@@ -124,7 +124,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 
 	user, err := h.UserService.CreateUser(input)
 	if err != nil {
-		httpx.Error(c, 400, err.Error())
+		httpx.ErrorWithCode(c, 400, httpx.ErrCodeInternalError, err.Error())
 		return
 	}
 
@@ -136,7 +136,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 func (h *Handler) UpdateUser(c *gin.Context) {
 	id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		httpx.Error(c, 400, "Invalid user id")
+		httpx.ErrorWithCode(c, 400, httpx.ErrCodeInternalError, "Invalid user id")
 		return
 	}
 
@@ -148,7 +148,7 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 
 	user, err := h.UserService.UpdateUser(uint(id64), input)
 	if err != nil {
-		httpx.Error(c, 400, err.Error())
+		httpx.ErrorWithCode(c, 400, httpx.ErrCodeInternalError, err.Error())
 		return
 	}
 
@@ -161,7 +161,7 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 	userIDValue, exists := c.Get("user_id")
 	userID, ok := userIDValue.(uint)
 	if !exists || !ok {
-		httpx.Error(c, 401, "Unauthorized")
+		httpx.ErrorWithCode(c, 400, httpx.ErrCodeInternalError, "Invalid role id")
 		return
 	}
 
@@ -173,7 +173,7 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 
 	user, err := h.UserService.UpdateProfile(userID, input)
 	if err != nil {
-		httpx.Error(c, 400, err.Error())
+		httpx.ErrorWithCode(c, 400, httpx.ErrCodeInternalError, err.Error())
 		return
 	}
 
@@ -186,7 +186,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	userIDValue, exists := c.Get("user_id")
 	userID, ok := userIDValue.(uint)
 	if !exists || !ok {
-		httpx.Error(c, 401, "Unauthorized")
+		httpx.ErrorWithCode(c, 401, httpx.ErrCodeInternalError, "Unauthorized")
 		return
 	}
 
@@ -211,7 +211,7 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 
 	id64, err := strconv.ParseUint(idParam, 10, 64)
 	if err != nil {
-		httpx.Error(c, 400, "Invalid user id")
+		httpx.ErrorWithCode(c, 400, httpx.ErrCodeInternalError, "Invalid user id")
 		return
 	}
 
@@ -222,7 +222,7 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 	callerID, _ := callerIDValue.(uint)
 
 	if err := h.UserService.DeleteUser(uint(id64), callerRole, callerID); err != nil {
-		httpx.Error(c, 400, err.Error())
+		httpx.ErrorWithCode(c, 400, httpx.ErrCodeInternalError, err.Error())
 		return
 	}
 

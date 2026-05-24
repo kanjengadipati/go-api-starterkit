@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"pleco-api/internal/httpx"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -78,11 +79,15 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			}
 		}
 
-		if errors.Is(err, services.ErrWeakPassword) {
-			httpx.Error(c, http.StatusBadRequest, err.Error())
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate") || strings.Contains(strings.ToLower(err.Error()), "unique") || strings.Contains(strings.ToLower(err.Error()), "already in use") {
+			httpx.ErrorWithCode(c, http.StatusBadRequest, httpx.ErrCodeEmailTaken, "Email already in use")
 			return
 		}
-		httpx.Error(c, http.StatusInternalServerError, "Failed to create user")
+		if errors.Is(err, services.ErrWeakPassword) {
+			httpx.ErrorWithCode(c, http.StatusBadRequest, httpx.ErrCodeWeakPassword, err.Error())
+			return
+		}
+		httpx.ErrorWithCode(c, http.StatusInternalServerError, httpx.ErrCodeInternalError, "Failed to create user")
 		return
 	}
 
@@ -131,7 +136,19 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			}
 		}
 
-		httpx.Error(c, http.StatusUnauthorized, err.Error())
+		if errors.Is(err, ErrInvalidCredentials) {
+			httpx.ErrorWithCode(c, http.StatusUnauthorized, httpx.ErrCodeInvalidCredentials, "Invalid credentials")
+			return
+		}
+		if errors.Is(err, ErrAccountLocked) {
+			httpx.ErrorWithCode(c, http.StatusUnauthorized, httpx.ErrCodeAccountLocked, "Account locked due to too many failed attempts")
+			return
+		}
+		if errors.Is(err, ErrEmailNotVerified) {
+			httpx.ErrorWithCode(c, http.StatusUnauthorized, httpx.ErrCodeEmailNotVerified, "Please verify your email first")
+			return
+		}
+		httpx.ErrorWithCode(c, http.StatusUnauthorized, httpx.ErrCodeInvalidCredentials, err.Error())
 		return
 	}
 
@@ -224,7 +241,7 @@ func (h *AuthHandler) VerifyOTP(c *gin.Context) {
 		IPAddress:     c.ClientIP(),
 	})
 	if err != nil {
-		httpx.Error(c, http.StatusUnauthorized, "Invalid or expired OTP")
+		httpx.ErrorWithCode(c, http.StatusUnauthorized, httpx.ErrCodeInvalidCredentials, "Invalid or expired OTP")
 		return
 	}
 
@@ -247,7 +264,7 @@ func (h *AuthHandler) VerifyMagicLink(c *gin.Context) {
 	}
 	tokens, err := h.AuthService.VerifyMagicLink(input.Token, deviceID, input.DeviceName, input.TrustedDevice, userAgent, c.ClientIP())
 	if err != nil {
-		httpx.Error(c, http.StatusUnauthorized, "Invalid or expired magic link")
+		httpx.ErrorWithCode(c, http.StatusUnauthorized, httpx.ErrCodeInvalidCredentials, "Invalid or expired magic link")
 		return
 	}
 
@@ -502,7 +519,7 @@ func (h *AuthHandler) ResendVerification(c *gin.Context) {
 
 	err := h.AuthService.ResendVerification(input.Email)
 	if err != nil {
-		httpx.Error(c, http.StatusBadRequest, err.Error())
+		httpx.ErrorWithCode(c, http.StatusBadRequest, httpx.ErrCodeInvalidCredentials, err.Error())
 		return
 	}
 
@@ -518,7 +535,7 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 
 	err := h.AuthService.ForgotPassword(body.Email)
 	if err != nil {
-		httpx.Error(c, http.StatusBadRequest, err.Error())
+		httpx.ErrorWithCode(c, http.StatusInternalServerError, httpx.ErrCodeInternalError, err.Error())
 		return
 	}
 
@@ -534,7 +551,7 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 
 	err := h.AuthService.ResetPassword(body.Token, body.NewPassword)
 	if err != nil {
-		httpx.Error(c, http.StatusBadRequest, err.Error())
+		httpx.ErrorWithCode(c, http.StatusBadRequest, httpx.ErrCodeInvalidCredentials, err.Error())
 		return
 	}
 
