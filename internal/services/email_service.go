@@ -24,6 +24,7 @@ type EmailService interface {
 	SendVerificationEmail(toEmail, token string) error
 	SendPasswordReset(toEmail, token string) error
 	SendOTP(toEmail, code string, expiresIn time.Duration) error
+	SendMagicLink(toEmail, token string) error
 }
 
 type emailService struct {
@@ -107,6 +108,21 @@ func (s *emailService) SendOTP(toEmail, code string, expiresIn time.Duration) er
 	`, code, expiresIn.Minutes())
 
 	return s.sendEmail(toEmail, "Your Pleco Verification Code", plainText, htmlContent)
+}
+
+func (s *emailService) SendMagicLink(toEmail, token string) error {
+	loginBaseURL := firstNonEmpty(s.frontendURL, s.appBaseURL)
+	link := fmt.Sprintf("%s/login?magic_token=%s", trimTrailingSlash(loginBaseURL), token)
+
+	plainText := fmt.Sprintf("Click this link to sign in:\n\n%s\n\nThis link expires in 15 minutes. If you did not request it, ignore this email.", link)
+	htmlContent := fmt.Sprintf(`
+		<strong>Sign in to Pleco</strong><br>
+		<p>Click this secure link to sign in:</p>
+		<p><a href="%s">Sign in</a></p>
+		<p>This link expires in 15 minutes. If you did not request it, ignore this email.</p>
+	`, link)
+
+	return s.sendEmail(toEmail, "Your Pleco Sign-In Link", plainText, htmlContent)
 }
 
 func (s *emailService) sendEmail(toEmail, subject, plainText, htmlContent string) error {

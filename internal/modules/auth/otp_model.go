@@ -33,3 +33,17 @@ type TrustedDevice struct {
 func (TrustedDevice) TableName() string {
 	return "trusted_devices"
 }
+
+type MagicLinkToken struct {
+	ID         string     `gorm:"primaryKey"`
+	UserID     uint       `gorm:"column:user_id"`
+	Email      string     `gorm:"column:email"`
+	TokenHash  string     `gorm:"column:token_hash"`
+	ExpiresAt  time.Time  `gorm:"column:expires_at"`
+	ConsumedAt *time.Time `gorm:"column:consumed_at"`
+	CreatedAt  time.Time  `gorm:"column:created_at"`
+}
+
+func (MagicLinkToken) TableName() string {
+	return "magic_link_tokens"
+}

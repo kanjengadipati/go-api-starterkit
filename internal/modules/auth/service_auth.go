@@ -68,7 +68,7 @@ func (s *authService) Register(user *userModule.User, password string) error {
 	return nil
 }
 
-func (s *authService) Login(email, password, deviceID, userAgent, ipAddress string) (*AuthTokens, error) {
+func (s *authService) Login(email, password, deviceID, deviceName string, trustedDevice bool, userAgent, ipAddress string) (*AuthTokens, error) {
 	ctx := context.Background()
 	attemptKey := "login_attempts:" + email
 
@@ -168,6 +168,12 @@ func (s *authService) Login(email, password, deviceID, userAgent, ipAddress stri
 		return nil, err
 	}
 
+	if trustedDevice {
+		if err := s.trustDevice(user.ID, userAgent, deviceID, deviceName); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := s.UserRepo.UpdateLastLogin(user.ID, time.Now()); err != nil {
 		return nil, err
 	}
@@ -260,6 +266,7 @@ func (s *authService) buildTokenPair(
 	return &AuthTokens{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		DeviceID:     deviceID,
 	}, refreshTokenModel, nil
 }
 

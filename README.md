@@ -482,6 +482,7 @@ POST /auth/admin/audit-logs/investigations
 - Authenticated routes require `Authorization: Bearer <access_token>`
 - Admin routes require an access token that belongs to an admin user
 - Refresh tokens are issued as the `pleco_refresh_token` HttpOnly cookie and are only valid for `POST /auth/refresh`
+- Device identity is issued as the `pleco_device_id` HttpOnly cookie and reused by session, trusted-device, and logout flows
 - Browser clients must send credentials/cookies when calling login, refresh, logout, or logout-others
 - Access tokens must include the server-issued token-version claim
 - After password reset, password change, role change, or `logout-all`, previously issued tokens can start returning `401` immediately
@@ -521,7 +522,6 @@ Response:
 ```http
 POST /auth/login
 Content-Type: application/json
-X-Device-ID: web
 
 {
   "email": "tester@example.com",
@@ -531,7 +531,7 @@ X-Device-ID: web
 
 Response:
 
-The response also sets `Set-Cookie: pleco_refresh_token=...; HttpOnly; Secure; SameSite=None; Path=/`.
+The response also sets HttpOnly cookies for refresh and device identity: `pleco_refresh_token=...` and `pleco_device_id=...`.
 
 ```json
 {
@@ -543,14 +543,14 @@ The response also sets `Set-Cookie: pleco_refresh_token=...; HttpOnly; Secure; S
 }
 ```
 
-### Passwordless OTP Login
+### Passwordless Login
 
-Pleco supports OTP login through pluggable delivery channels. Current channels are `whatsapp` and `email`; providers are selected through environment variables, so the auth layer only calls the configured channel.
+Pleco supports passwordless login through OTP and trusted-device magic links. The first step validates an email address or WhatsApp number without sending anything. The second step lets the backend decide the delivery: trusted devices receive a magic link by email, while other attempts receive an OTP through the selected channel.
 
-Request an OTP:
+Check identity:
 
 ```http
-POST /auth/request-otp
+POST /auth/passwordless/check
 Content-Type: application/json
 
 {
@@ -559,12 +559,23 @@ Content-Type: application/json
 }
 ```
 
-Verify the OTP:
+Start delivery:
+
+```http
+POST /auth/passwordless/start
+Content-Type: application/json
+
+{
+  "channel": "whatsapp",
+  "target": "+628123456789"
+}
+```
+
+If `next_step` is `otp`, verify the OTP:
 
 ```http
 POST /auth/verify-otp
 Content-Type: application/json
-X-Device-ID: web
 
 {
   "channel": "whatsapp",
@@ -575,7 +586,7 @@ X-Device-ID: web
 }
 ```
 
-Successful verification returns an access token and sets the `pleco_refresh_token` HttpOnly cookie. If the target does not exist yet, Pleco auto-creates a user and marks `phone_verified` or `email_verified` based on the channel. OTP codes are hashed, expire after 5 minutes, are consumed after successful verification, and are guarded by cooldown, hourly target limits, max attempts, and audit logs.
+If `next_step` is `magic_link`, open the emailed link and verify it through `POST /auth/magic-link/verify`. Magic links are stored as hashed, single-use DB tokens with expiry and are rejected after first use. Successful verification returns an access token and sets the `pleco_refresh_token` and `pleco_device_id` HttpOnly cookies. If an OTP target does not exist yet, Pleco auto-creates a user and marks `phone_verified` or `email_verified` based on the channel. OTP codes are hashed, expire after 5 minutes, are consumed after successful verification, and are guarded by cooldown, hourly target limits, max attempts, and audit logs.
 
 ### Profile
 
@@ -637,7 +648,6 @@ curl -X POST "$BASE_URL/auth/register" \
 ```bash
 curl -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
-  -H "X-Device-ID: web" \
   -d '{
     "email": "tester@example.com",
     "password": "secret123"
@@ -651,7 +661,6 @@ COOKIE_JAR=/tmp/pleco-cookies.txt
 
 TOKENS=$(curl -s -c "$COOKIE_JAR" -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
-  -H "X-Device-ID: web" \
   -d '{
     "email": "tester@example.com",
     "password": "secret123"
@@ -695,13 +704,13 @@ After a successful password change, existing refresh tokens are revoked. Log in 
 ```bash
 curl -X POST "$BASE_URL/auth/refresh" \
   -H "Content-Type: application/json" \
-  -H "X-Device-ID: web" \
   -b "$COOKIE_JAR" \
   -c "$COOKIE_JAR" \
   -d '{}'
 ```
 
 `POST /auth/refresh` also accepts the legacy JSON `refresh_token` body for non-browser clients, but browser and dashboard clients should rely on the HttpOnly cookie.
+The API also manages `pleco_device_id` as an HttpOnly cookie, so browser clients do not need to create or send a device id.
 
 ### Verify Email
 
@@ -750,7 +759,6 @@ Supported providers: `google`, `facebook`, `apple`.
 ```bash
 curl -X POST "$BASE_URL/auth/social-login" \
   -H "Content-Type: application/json" \
-  -H "X-Device-ID: web" \
   -d '{
     "provider": "google",
     "token": "<provider-token>"
@@ -771,7 +779,7 @@ List active sessions:
 ```bash
 curl -X GET "$BASE_URL/auth/sessions" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "X-Device-ID: web"
+  -b "$COOKIE_JAR"
 ```
 
 Revoke one session by ID:
@@ -786,7 +794,7 @@ Logout current session:
 ```bash
 curl -X POST "$BASE_URL/auth/logout" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "X-Device-ID: web"
+  -b "$COOKIE_JAR"
 ```
 
 Logout all sessions:
@@ -803,7 +811,8 @@ Logout every session except the current device:
 ```bash
 curl -X POST "$BASE_URL/auth/logout-others" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "X-Device-ID: web"
+  -b "$COOKIE_JAR" \
+  -c "$COOKIE_JAR"
 ```
 
 ### Admin: Users
@@ -1044,7 +1053,7 @@ Recommended flow:
 1. `Health`
 2. `Register`
 3. `Verify Email` — or mark the user as verified directly in the database
-4. `Login` — stores `access_token` and the `pleco_refresh_token` cookie automatically
+4. `Login` — stores `access_token` and the `pleco_refresh_token` / `pleco_device_id` cookies automatically
 5. `Profile`
 6. `Update Profile`
 7. `Change Password`
@@ -1056,7 +1065,7 @@ Recommended flow:
 13. `AI Investigate` — run an investigation over a filtered log window
 
 Notes:
-- `Login` and `Refresh Token` update the Postman environment variable for `access_token`; the refresh token is managed by Postman's cookie jar as `pleco_refresh_token`.
+- `Login` and `Refresh Token` update the Postman environment variable for `access_token`; refresh and device cookies are managed by Postman's cookie jar as `pleco_refresh_token` and `pleco_device_id`.
 - `Logout Other Sessions` also rotates the refresh cookie and stores a fresh `access_token`.
 - `Verify Email` and `Reset Password` require manual token input unless you automate email capture.
 - Admin endpoints require an admin access token.
@@ -1162,7 +1171,9 @@ go build -tags netgo -ldflags '-s -w' -o app ./cmd/api
 - The app sets baseline security headers including CSP, HSTS (on HTTPS), `X-Content-Type-Options`, and `X-Frame-Options`.
 - Request IDs are propagated via the `X-Request-ID` header for tracing across the gateway and backend.
 - Trusted proxy handling is configurable through `TRUSTED_PROXIES` so client IP-based audit and rate limiting work correctly behind a gateway.
+- Device identity is managed by the API through the `pleco_device_id` HttpOnly cookie. Browser clients should not create or persist their own device id in JavaScript.
 - Refresh tokens are stored in the `pleco_refresh_token` HttpOnly cookie and rotated on every use. Pleco keeps refresh-token family metadata so reuse of an already-rotated token can revoke the whole family and invalidate prior access tokens.
+- Passwordless magic links are stored as hashed, single-use database tokens with expiry; verification consumes the token in a transaction so reused links are rejected.
 - Password reset tokens are invalidated if the user changes their password after the token was issued.
 
 ---

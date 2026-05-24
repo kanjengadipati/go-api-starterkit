@@ -8,8 +8,10 @@ type RegisterRequest struct {
 }
 
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Email         string `json:"email" binding:"required,email"`
+	Password      string `json:"password" binding:"required"`
+	DeviceName    string `json:"device_name"`
+	TrustedDevice bool   `json:"trusted_device"`
 }
 
 type SocialLoginRequest struct {
@@ -27,6 +29,17 @@ type VerifyOTPRequest struct {
 	Channel       string `json:"channel" binding:"required,oneof=whatsapp email"`
 	Target        string `json:"target" binding:"required"`
 	OTP           string `json:"otp" binding:"required,len=6,numeric"`
+	DeviceName    string `json:"device_name"`
+	TrustedDevice bool   `json:"trusted_device"`
+}
+
+type PasswordlessIdentityRequest struct {
+	Channel string `json:"channel" binding:"required,oneof=whatsapp email"`
+	Target  string `json:"target" binding:"required"`
+}
+
+type VerifyMagicLinkRequest struct {
+	Token         string `json:"token" binding:"required"`
 	DeviceName    string `json:"device_name"`
 	TrustedDevice bool   `json:"trusted_device"`
 }

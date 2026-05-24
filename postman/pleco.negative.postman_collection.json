@@ -22,10 +22,11 @@
                   "});",
                   "const loginJson = pm.response.json();",
                   "const loginData = loginJson.data || {};",
-                  "pm.test('admin login returns access token and refresh cookie', function () {",
+                  "pm.test('admin login returns access token and auth cookies', function () {",
                   "  pm.expect(loginData.access_token).to.be.a('string').and.not.empty;",
                   "  pm.expect(loginData.refresh_token).to.be.undefined;",
                   "  pm.expect(pm.response.headers.get('Set-Cookie') || '').to.include('pleco_refresh_token=');",
+                  "  pm.expect(pm.response.headers.get('Set-Cookie') || '').to.include('pleco_device_id=');",
                   "});",
                   "pm.environment.set('access_token', loginData.access_token);"
                 ]
@@ -38,10 +39,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "{{device_id}}"
               }
             ],
             "body": {
@@ -77,10 +74,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "{{device_id}}"
               }
             ],
             "body": {

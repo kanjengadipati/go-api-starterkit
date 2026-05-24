@@ -31,6 +31,9 @@ func SetupRoutes(api *gin.RouterGroup, handler *AuthHandler, jwtService *service
 
 	auth.POST("/register", registerLimiter.Middleware(), handler.Register)
 	auth.POST("/login", loginLimiter.Middleware(), handler.Login)
+	auth.POST("/passwordless/check", otpLimiter.Middleware(), handler.CheckPasswordlessIdentity)
+	auth.POST("/passwordless/start", otpLimiter.Middleware(), handler.StartPasswordless)
+	auth.POST("/magic-link/verify", loginLimiter.Middleware(), handler.VerifyMagicLink)
 	auth.POST("/request-otp", otpLimiter.Middleware(), handler.RequestOTP)
 	auth.POST("/verify-otp", loginLimiter.Middleware(), handler.VerifyOTP)
 	auth.POST("/refresh", refreshLimiter.Middleware(), handler.RefreshToken)
@@ -50,4 +53,5 @@ func SetupRoutes(api *gin.RouterGroup, handler *AuthHandler, jwtService *service
 	protected.POST("/logout-all", handler.LogoutAll)
 	protected.POST("/logout-others", handler.LogoutOtherSessions)
 	protected.DELETE("/sessions/:id", handler.RevokeSession)
+	protected.DELETE("/trusted-devices/:id", handler.RevokeTrustedDevice)
 }

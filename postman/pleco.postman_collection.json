@@ -15,10 +15,6 @@
       "value": ""
     },
     {
-      "key": "device_id",
-      "value": "web"
-    },
-    {
       "key": "user_email",
       "value": "tester@example.com"
     },
@@ -192,8 +188,10 @@
                   "});",
                   "const json = pm.response.json();",
                   "const data = json.data || {};",
-                  "pm.test('login returns access token and refresh cookie', function () {",
+                  "pm.test('login returns access token and auth cookies', function () {",
                   "  pm.expect(data.access_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(pm.response.headers.get('Set-Cookie') || '').to.include('pleco_refresh_token=');",
+                  "  pm.expect(pm.response.headers.get('Set-Cookie') || '').to.include('pleco_device_id=');",
                   "});",
                   "pm.environment.set('access_token', data.access_token);",
                   "console.log('access_token set:', !!data.access_token);"
@@ -208,10 +206,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "{{device_id}}"
               }
             ],
             "body": {
@@ -242,10 +236,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "{{device_id}}"
               }
             ],
             "body": {
@@ -280,10 +270,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "{{device_id}}"
               }
             ],
             "body": {
@@ -408,8 +394,10 @@
                   "});",
                   "const json = pm.response.json();",
                   "const data = json.data || {};",
-                  "pm.test('refresh returns access token and refresh cookie', function () {",
+                  "pm.test('refresh returns access token and auth cookies', function () {",
                   "  pm.expect(data.access_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(pm.response.headers.get('Set-Cookie') || '').to.include('pleco_refresh_token=');",
+                  "  pm.expect(pm.response.headers.get('Set-Cookie') || '').to.include('pleco_device_id=');",
                   "});",
                   "pm.environment.set('access_token', data.access_token);",
                   "console.log('access_token set:', !!data.access_token);"
@@ -454,10 +442,6 @@
               {
                 "key": "Authorization",
                 "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "{{device_id}}"
               }
             ],
             "url": "{{base_url}}/auth/logout"
@@ -493,10 +477,6 @@
               {
                 "key": "Authorization",
                 "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "{{device_id}}"
               }
             ],
             "url": "{{base_url}}/auth/sessions"
@@ -540,8 +520,10 @@
                   "});",
                   "const json = pm.response.json();",
                   "const data = json.data || {};",
-                  "pm.test('logout other sessions returns access token and refresh cookie', function () {",
+                  "pm.test('logout other sessions returns access token and auth cookies', function () {",
                   "  pm.expect(data.access_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(pm.response.headers.get('Set-Cookie') || '').to.include('pleco_refresh_token=');",
+                  "  pm.expect(pm.response.headers.get('Set-Cookie') || '').to.include('pleco_device_id=');",
                   "});",
                   "pm.environment.set('access_token', data.access_token);",
                   "console.log('access_token set:', !!data.access_token);"
@@ -556,10 +538,6 @@
               {
                 "key": "Authorization",
                 "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "{{device_id}}"
               }
             ],
             "url": "{{base_url}}/auth/logout-others"

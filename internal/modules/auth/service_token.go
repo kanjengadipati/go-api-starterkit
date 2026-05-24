@@ -119,21 +119,45 @@ func (s *authService) ListSessions(userID uint, currentDeviceID string) ([]Sessi
 		return nil, err
 	}
 
+	trustedByHash := map[string]TrustedDevice{}
+	if s.OTPRepo != nil {
+		trustedDevices, err := s.OTPRepo.FindTrustedDevicesByUser(userID)
+		if err != nil {
+			return nil, err
+		}
+		for _, device := range trustedDevices {
+			trustedByHash[device.DeviceHash] = device
+		}
+	}
+
 	sessions := make([]Session, 0, len(tokens))
 	for _, token := range tokens {
+		trusted, ok := trustedByHash[hashDevice(token.UserAgent, token.DeviceID)]
 		sessions = append(sessions, Session{
-			ID:        token.ID,
-			DeviceID:  token.DeviceID,
-			UserAgent: token.UserAgent,
-			IPAddress: token.IPAddress,
-			CreatedAt: token.CreatedAt,
-			UpdatedAt: token.UpdatedAt,
-			ExpiredAt: token.ExpiredAt,
-			IsCurrent: currentDeviceID != "" && token.DeviceID == currentDeviceID,
+			ID:              token.ID,
+			DeviceID:        token.DeviceID,
+			DeviceName:      trusted.DeviceName,
+			TrustedDeviceID: trusted.ID,
+			UserAgent:       token.UserAgent,
+			IPAddress:       token.IPAddress,
+			CreatedAt:       token.CreatedAt,
+			UpdatedAt:       token.UpdatedAt,
+			ExpiredAt:       token.ExpiredAt,
+			IsCurrent:       currentDeviceID != "" && token.DeviceID == currentDeviceID,
+			IsTrusted:       ok,
+			TrustedAt:       trustedPointer(ok, trusted.CreatedAt),
+			LastTrustedAt:   trusted.LastUsedAt,
 		})
 	}
 
 	return sessions, nil
+}
+
+func trustedPointer(ok bool, at time.Time) *time.Time {
+	if !ok {
+		return nil
+	}
+	return &at
 }
 
 func (s *authService) RevokeSession(userID, sessionID uint, userAgent, ipAddress string) error {
@@ -159,6 +183,28 @@ func (s *authService) RevokeSession(userID, sessionID uint, userAgent, ipAddress
 		ResourceID:  &userID,
 		Status:      "success",
 		Description: "session revoked",
+		UserAgent:   userAgent,
+		IPAddress:   ipAddress,
+	})
+
+	return nil
+}
+
+func (s *authService) RevokeTrustedDevice(userID uint, trustedDeviceID string, userAgent, ipAddress string) error {
+	if s.OTPRepo == nil || trustedDeviceID == "" {
+		return ErrSessionNotFound
+	}
+	if err := s.OTPRepo.DeleteTrustedDevice(userID, trustedDeviceID); err != nil {
+		return err
+	}
+
+	s.AuditSvc.SafeRecord(audit.RecordInput{
+		ActorUserID: &userID,
+		Action:      "revoke_trusted_device",
+		Resource:    "auth",
+		ResourceID:  &userID,
+		Status:      "success",
+		Description: "trusted device removed",
 		UserAgent:   userAgent,
 		IPAddress:   ipAddress,
 	})

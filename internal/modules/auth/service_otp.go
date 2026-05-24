@@ -18,15 +18,17 @@ import (
 	userModule "pleco-api/internal/modules/user"
 	"pleco-api/internal/otp"
 	"pleco-api/internal/services"
+	"pleco-api/internal/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 const (
-	otpPurposeLogin = "login"
-	otpExpiry       = 5 * time.Minute
-	otpMaxAttempts  = 5
+	otpPurposeLogin       = "login"
+	otpExpiry             = 5 * time.Minute
+	otpMaxAttempts        = 5
+	legacyDashboardDevice = "nextjs-dashboard"
 )
 
 var (
@@ -34,10 +36,45 @@ var (
 	ErrOTPNotAvailable   = errors.New("unable to send OTP")
 	ErrInvalidOTP        = errors.New("invalid or expired OTP")
 	ErrOTPRateLimited    = errors.New("too many OTP requests")
+	ErrOTPWhatsAppTarget = errors.New("no whatsapp number available for this account")
 )
 
-func (s *authService) RequestOTP(ctx context.Context, channel, target, ipAddress, userAgent string) error {
+type PasswordlessStartResult struct {
+	NextStep string `json:"next_step"`
+}
+
+func (s *authService) CheckPasswordlessIdentity(channel, target string) error {
+	_, _, err := normalizeOTPTarget(channel, target)
+	return err
+}
+
+func (s *authService) StartPasswordless(ctx context.Context, channel, target, deviceID, userAgent, ipAddress string) (*PasswordlessStartResult, error) {
 	channel, target, err := normalizeOTPTarget(channel, target)
+	if err != nil {
+		return nil, err
+	}
+
+	if user, err := findOTPUser(s.UserRepo, channel, target); err == nil && s.isTrustedDevice(user.ID, userAgent, deviceID) && user.Email != "" {
+		token, err := s.generateMagicLinkToken(user.ID, user.Email)
+		if err != nil {
+			return nil, ErrOTPNotAvailable
+		}
+		if err := s.EmailSvc.SendMagicLink(user.Email, token); err != nil {
+			log.Printf("magic link email failed for %s: %v", user.Email, err)
+			return nil, ErrOTPNotAvailable
+		}
+		s.recordOTPAudit(&user.ID, "MAGIC_LINK_REQUESTED", channel, target, "success", "magic link requested", ipAddress, userAgent)
+		return &PasswordlessStartResult{NextStep: "magic_link"}, nil
+	}
+
+	if err := s.RequestOTP(ctx, channel, target, ipAddress, userAgent); err != nil {
+		return nil, err
+	}
+	return &PasswordlessStartResult{NextStep: "otp"}, nil
+}
+
+func (s *authService) RequestOTP(ctx context.Context, channel, target, ipAddress, userAgent string) error {
+	channel, target, err := s.resolveOTPTarget(channel, target)
 	if err != nil {
 		return err
 	}
@@ -102,8 +139,48 @@ func (s *authService) RequestOTP(ctx context.Context, channel, target, ipAddress
 	return nil
 }
 
+func (s *authService) VerifyMagicLink(tokenString, deviceID, deviceName string, trustedDevice bool, userAgent, ipAddress string) (*AuthTokens, error) {
+	if s.MagicLinkRepo == nil {
+		return nil, ErrInvalidOTP
+	}
+
+	var user *userModule.User
+	if err := s.runMagicLinkTx(func(userRepo userModule.Repository, magicRepo magicLinkRepository) error {
+		record, err := magicRepo.FindActiveByTokenHash(utils.HashToken(strings.TrimSpace(tokenString)), time.Now())
+		if err != nil {
+			return err
+		}
+		foundUser, err := userRepo.FindByID(record.UserID)
+		if err != nil {
+			return err
+		}
+		if err := magicRepo.Consume(record.ID, time.Now()); err != nil {
+			return err
+		}
+		user = foundUser
+		return nil
+	}); err != nil {
+		return nil, ErrInvalidOTP
+	}
+
+	if trustedDevice {
+		if err := s.trustDevice(user.ID, userAgent, deviceID, deviceName); err != nil {
+			return nil, ErrInvalidOTP
+		}
+	}
+
+	tokens, err := s.issueTokens(user.ID, user.Role, user.AccessTokenVersion, deviceID, userAgent, ipAddress)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.UserRepo.UpdateLastLogin(user.ID, time.Now())
+	s.invalidateUserCache(user.ID)
+	s.recordOTPAudit(&user.ID, "LOGIN_SUCCESS", "magic_link", user.Email, "success", "magic link login succeeded", ipAddress, userAgent)
+	return tokens, nil
+}
+
 func (s *authService) VerifyOTP(ctx context.Context, input VerifyOTPInput) (*AuthTokens, error) {
-	channel, target, err := normalizeOTPTarget(input.Channel, input.Target)
+	channel, target, err := s.resolveOTPTarget(input.Channel, input.Target)
 	if err != nil {
 		return nil, err
 	}
@@ -155,15 +232,7 @@ func (s *authService) VerifyOTP(ctx context.Context, input VerifyOTPInput) (*Aut
 			return err
 		}
 		if input.TrustedDevice {
-			now := time.Now()
-			if err := otpRepo.UpsertTrustedDevice(&TrustedDevice{
-				ID:         uuid.NewString(),
-				UserID:     user.ID,
-				DeviceHash: hashDevice(input.UserAgent, input.DeviceID),
-				DeviceName: input.DeviceName,
-				LastUsedAt: &now,
-				CreatedAt:  now,
-			}); err != nil {
+			if err := upsertTrustedDevice(otpRepo, user.ID, input.UserAgent, input.DeviceID, input.DeviceName); err != nil {
 				return err
 			}
 		}
@@ -206,6 +275,55 @@ func (s *authService) runOTPTx(fn func(userRepo userModule.Repository, otpRepo o
 	})
 }
 
+func (s *authService) runMagicLinkTx(fn func(userRepo userModule.Repository, magicRepo magicLinkRepository) error) error {
+	if s.DB == nil {
+		return fn(s.UserRepo, s.MagicLinkRepo)
+	}
+	return s.DB.Transaction(func(tx *gorm.DB) error {
+		return fn(s.UserRepo.WithTx(tx), s.MagicLinkRepo.WithTx(tx))
+	})
+}
+
+func (s *authService) isTrustedDevice(userID uint, userAgent, deviceID string) bool {
+	if s.OTPRepo == nil || deviceID == "" {
+		return false
+	}
+	_, err := s.OTPRepo.FindTrustedDevice(userID, hashDevice(userAgent, deviceID))
+	if err == nil {
+		return true
+	}
+	if deviceID == legacyDashboardDevice {
+		return false
+	}
+	_, err = s.OTPRepo.FindTrustedDevice(userID, hashDevice(userAgent, legacyDashboardDevice))
+	return err == nil
+}
+
+func (s *authService) trustDevice(userID uint, userAgent, deviceID, deviceName string) error {
+	if s.OTPRepo == nil {
+		return nil
+	}
+	return upsertTrustedDevice(s.OTPRepo, userID, userAgent, deviceID, deviceName)
+}
+
+func upsertTrustedDevice(repo otpRepository, userID uint, userAgent, deviceID, deviceName string) error {
+	if repo == nil || deviceID == "" {
+		return nil
+	}
+	now := time.Now()
+	if deviceName == "" {
+		deviceName = deviceID
+	}
+	return repo.UpsertTrustedDevice(&TrustedDevice{
+		ID:         uuid.NewString(),
+		UserID:     userID,
+		DeviceHash: hashDevice(userAgent, deviceID),
+		DeviceName: deviceName,
+		LastUsedAt: &now,
+		CreatedAt:  now,
+	})
+}
+
 func normalizeOTPTarget(channel, target string) (string, string, error) {
 	channel = strings.ToLower(strings.TrimSpace(channel))
 	target = strings.TrimSpace(target)
@@ -223,6 +341,38 @@ func normalizeOTPTarget(channel, target string) (string, string, error) {
 		return "", "", ErrInvalidOTPChannel
 	}
 	return channel, target, nil
+}
+
+func (s *authService) resolveOTPTarget(channel, target string) (string, string, error) {
+	channel = strings.ToLower(strings.TrimSpace(channel))
+	target = strings.TrimSpace(target)
+	if channel != "whatsapp" {
+		return normalizeOTPTarget(channel, target)
+	}
+	if isE164Phone(target) {
+		return channel, target, nil
+	}
+
+	email := strings.ToLower(target)
+	if _, err := mail.ParseAddress(email); err != nil {
+		return "", "", ErrInvalidOTPChannel
+	}
+	if s.UserRepo == nil {
+		return "", "", ErrOTPWhatsAppTarget
+	}
+
+	user, err := s.UserRepo.FindByEmail(email)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", "", ErrOTPWhatsAppTarget
+		}
+		return "", "", ErrOTPNotAvailable
+	}
+	phone := strings.TrimSpace(user.PhoneNumber)
+	if !isE164Phone(phone) {
+		return "", "", ErrOTPWhatsAppTarget
+	}
+	return channel, phone, nil
 }
 
 func isE164Phone(target string) bool {
@@ -284,6 +434,25 @@ func hashOTP(channel, target, code string) string {
 func hashDevice(userAgent, deviceID string) string {
 	sum := sha256.Sum256([]byte(strings.TrimSpace(userAgent) + ":" + strings.TrimSpace(deviceID)))
 	return hex.EncodeToString(sum[:])
+}
+
+func (s *authService) generateMagicLinkToken(userID uint, email string) (string, error) {
+	if s.MagicLinkRepo == nil {
+		return "", ErrOTPNotAvailable
+	}
+	token := uuid.NewString()
+	now := time.Now()
+	if err := s.MagicLinkRepo.Create(&MagicLinkToken{
+		ID:        uuid.NewString(),
+		UserID:    userID,
+		Email:     email,
+		TokenHash: utils.HashToken(token),
+		ExpiresAt: now.Add(15 * time.Minute),
+		CreatedAt: now,
+	}); err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 func findOTPUser(repo userModule.Repository, channel, target string) (*userModule.User, error) {

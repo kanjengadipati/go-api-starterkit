@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"pleco-api/internal/cache"
 	"pleco-api/internal/erroroptimizer"
 	"pleco-api/internal/modules/permission"
@@ -24,7 +25,10 @@ type AuthHandler struct {
 	ErrorOptimizer *erroroptimizer.ErrorOptimizerService
 }
 
-const refreshTokenCookieName = "pleco_refresh_token"
+const (
+	refreshTokenCookieName = "pleco_refresh_token"
+	deviceIDCookieName     = "pleco_device_id"
+)
 
 type accessTokenResponse struct {
 	AccessToken string `json:"access_token"`
@@ -93,11 +97,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	deviceID := c.GetHeader("X-Device-ID")
+	deviceID := ensureDeviceID(c)
 	userAgent := c.GetHeader("User-Agent")
 	ipAddress := c.ClientIP()
+	if input.DeviceName == "" {
+		input.DeviceName = deviceID
+	}
 
-	tokens, err := h.AuthService.Login(input.Email, input.Password, deviceID, userAgent, ipAddress)
+	tokens, err := h.AuthService.Login(input.Email, input.Password, deviceID, input.DeviceName, input.TrustedDevice, userAgent, ipAddress)
 	if err != nil {
 		if h.ErrorOptimizer != nil {
 			language := c.GetHeader("Accept-Language")
@@ -129,6 +136,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	setRefreshTokenCookie(c, tokens.RefreshToken)
+	setDeviceIDCookie(c, tokens.DeviceID)
 	httpx.Success(c, http.StatusOK, "Login success", accessTokenResponse{AccessToken: tokens.AccessToken}, nil)
 }
 
@@ -147,11 +155,49 @@ func (h *AuthHandler) RequestOTP(c *gin.Context) {
 			status = http.StatusTooManyRequests
 			message = "Too many OTP requests. Please try again later."
 		}
+		if errors.Is(err, ErrOTPWhatsAppTarget) {
+			message = "No WhatsApp number is available for this account. Use email OTP or add a WhatsApp number in profile settings."
+		}
 		httpx.Error(c, status, message)
 		return
 	}
 
 	httpx.Success(c, http.StatusOK, "OTP sent successfully", nil, nil)
+}
+
+func (h *AuthHandler) CheckPasswordlessIdentity(c *gin.Context) {
+	var input PasswordlessIdentityRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		httpx.ValidationError(c, httpx.FormatValidationError(err))
+		return
+	}
+	if err := h.AuthService.CheckPasswordlessIdentity(input.Channel, input.Target); err != nil {
+		httpx.Error(c, http.StatusBadRequest, "Enter a valid email address or WhatsApp number.")
+		return
+	}
+	httpx.Success(c, http.StatusOK, "Passwordless identity accepted", nil, nil)
+}
+
+func (h *AuthHandler) StartPasswordless(c *gin.Context) {
+	var input PasswordlessIdentityRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		httpx.ValidationError(c, httpx.FormatValidationError(err))
+		return
+	}
+
+	result, err := h.AuthService.StartPasswordless(c.Request.Context(), input.Channel, input.Target, ensureDeviceID(c), c.GetHeader("User-Agent"), c.ClientIP())
+	if err != nil {
+		status := http.StatusBadRequest
+		message := "Unable to continue passwordless login"
+		if errors.Is(err, ErrOTPRateLimited) {
+			status = http.StatusTooManyRequests
+			message = "Too many requests. Please try again later."
+		}
+		httpx.Error(c, status, message)
+		return
+	}
+
+	httpx.Success(c, http.StatusOK, "Passwordless login started", result, nil)
 }
 
 func (h *AuthHandler) VerifyOTP(c *gin.Context) {
@@ -161,7 +207,7 @@ func (h *AuthHandler) VerifyOTP(c *gin.Context) {
 		return
 	}
 
-	deviceID := c.GetHeader("X-Device-ID")
+	deviceID := ensureDeviceID(c)
 	userAgent := c.GetHeader("User-Agent")
 	if input.DeviceName == "" {
 		input.DeviceName = deviceID
@@ -183,7 +229,31 @@ func (h *AuthHandler) VerifyOTP(c *gin.Context) {
 	}
 
 	setRefreshTokenCookie(c, tokens.RefreshToken)
+	setDeviceIDCookie(c, tokens.DeviceID)
 	httpx.Success(c, http.StatusOK, "OTP verified", accessTokenResponse{AccessToken: tokens.AccessToken}, nil)
+}
+
+func (h *AuthHandler) VerifyMagicLink(c *gin.Context) {
+	var input VerifyMagicLinkRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		httpx.ValidationError(c, httpx.FormatValidationError(err))
+		return
+	}
+
+	deviceID := ensureDeviceID(c)
+	userAgent := c.GetHeader("User-Agent")
+	if input.DeviceName == "" {
+		input.DeviceName = deviceID
+	}
+	tokens, err := h.AuthService.VerifyMagicLink(input.Token, deviceID, input.DeviceName, input.TrustedDevice, userAgent, c.ClientIP())
+	if err != nil {
+		httpx.Error(c, http.StatusUnauthorized, "Invalid or expired magic link")
+		return
+	}
+
+	setRefreshTokenCookie(c, tokens.RefreshToken)
+	setDeviceIDCookie(c, tokens.DeviceID)
+	httpx.Success(c, http.StatusOK, "Magic link verified", accessTokenResponse{AccessToken: tokens.AccessToken}, nil)
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
@@ -193,7 +263,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	deviceID := c.GetHeader("X-Device-ID")
+	deviceID := currentDeviceID(c)
 	if deviceID == "" {
 		httpx.Error(c, http.StatusBadRequest, "device id required")
 		return
@@ -235,7 +305,7 @@ func (h *AuthHandler) LogoutOtherSessions(c *gin.Context) {
 		return
 	}
 
-	currentDeviceID := c.GetHeader("X-Device-ID")
+	currentDeviceID := currentDeviceID(c)
 	if currentDeviceID == "" {
 		httpx.Error(c, http.StatusBadRequest, "device id required")
 		return
@@ -251,6 +321,7 @@ func (h *AuthHandler) LogoutOtherSessions(c *gin.Context) {
 	}
 
 	setRefreshTokenCookie(c, tokens.RefreshToken)
+	setDeviceIDCookie(c, tokens.DeviceID)
 	httpx.Success(c, http.StatusOK, "other sessions revoked", accessTokenResponse{AccessToken: tokens.AccessToken}, nil)
 }
 
@@ -274,6 +345,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	setRefreshTokenCookie(c, tokens.RefreshToken)
+	setDeviceIDCookie(c, tokens.DeviceID)
 	httpx.Success(c, http.StatusOK, "Refresh token success", accessTokenResponse{AccessToken: tokens.AccessToken}, nil)
 }
 
@@ -284,7 +356,7 @@ func (h *AuthHandler) ListSessions(c *gin.Context) {
 		return
 	}
 
-	currentDeviceID := c.GetHeader("X-Device-ID")
+	currentDeviceID := currentDeviceID(c)
 	sessions, err := h.AuthService.ListSessions(userID, currentDeviceID)
 	if err != nil {
 		httpx.Error(c, http.StatusInternalServerError, "Failed to fetch sessions")
@@ -320,6 +392,34 @@ func (h *AuthHandler) RevokeSession(c *gin.Context) {
 	}
 
 	httpx.Success(c, http.StatusOK, "session revoked", nil, nil)
+}
+
+func (h *AuthHandler) RevokeTrustedDevice(c *gin.Context) {
+	userID, ok := httpx.GetUserIDFromContext(c)
+	if !ok {
+		httpx.Error(c, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	trustedDeviceID := c.Param("id")
+	if trustedDeviceID == "" {
+		httpx.Error(c, http.StatusBadRequest, "invalid trusted device id")
+		return
+	}
+
+	userAgent := c.GetHeader("User-Agent")
+	ipAddress := c.ClientIP()
+
+	if err := h.AuthService.RevokeTrustedDevice(userID, trustedDeviceID, userAgent, ipAddress); err != nil {
+		if errors.Is(err, ErrSessionNotFound) {
+			httpx.Error(c, http.StatusNotFound, err.Error())
+			return
+		}
+		httpx.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	httpx.Success(c, http.StatusOK, "trusted device removed", nil, nil)
 }
 
 func (h *AuthHandler) Profile(c *gin.Context) {
@@ -457,7 +557,7 @@ func (h *AuthHandler) SocialLogin(c *gin.Context) {
 		return
 	}
 
-	deviceID := c.GetHeader("X-Device-ID")
+	deviceID := ensureDeviceID(c)
 	userAgent := c.GetHeader("User-Agent")
 	ip := c.ClientIP()
 
@@ -468,6 +568,7 @@ func (h *AuthHandler) SocialLogin(c *gin.Context) {
 	}
 
 	setRefreshTokenCookie(c, tokens.RefreshToken)
+	setDeviceIDCookie(c, tokens.DeviceID)
 	httpx.Success(c, http.StatusOK, "Social login success", accessTokenResponse{AccessToken: tokens.AccessToken}, nil)
 }
 
@@ -535,6 +636,38 @@ func setRefreshTokenCookie(c *gin.Context, refreshToken string) {
 		Value:    refreshToken,
 		Path:     "/",
 		MaxAge:   int((7 * 24 * time.Hour).Seconds()),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	})
+}
+
+func ensureDeviceID(c *gin.Context) string {
+	if deviceID := currentDeviceID(c); deviceID != "" {
+		setDeviceIDCookie(c, deviceID)
+		return deviceID
+	}
+	deviceID := "device-" + uuid.NewString()
+	setDeviceIDCookie(c, deviceID)
+	return deviceID
+}
+
+func currentDeviceID(c *gin.Context) string {
+	if deviceID, err := c.Cookie(deviceIDCookieName); err == nil && deviceID != "" {
+		return deviceID
+	}
+	return c.GetHeader("X-Device-ID")
+}
+
+func setDeviceIDCookie(c *gin.Context, deviceID string) {
+	if deviceID == "" {
+		return
+	}
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     deviceIDCookieName,
+		Value:    deviceID,
+		Path:     "/",
+		MaxAge:   int((365 * 24 * time.Hour).Seconds()),
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteNoneMode,

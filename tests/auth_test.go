@@ -272,6 +272,8 @@ func TestLogin_Success(t *testing.T) {
 		"test@mail.com",
 		"123456",
 		"web",
+		"web",
+		false,
 		mock.Anything,
 		mock.Anything,
 	).Return(&auth.AuthTokens{
@@ -776,7 +778,7 @@ func TestAuthService_Login_ReplacesExistingDeviceRefreshTokens(t *testing.T) {
 		config.AppConfig{},
 	)
 
-	tokens, err := service.Login("test@mail.com", "secret123", "web", "Browser", "127.0.0.1")
+	tokens, err := service.Login("test@mail.com", "secret123", "web", "Browser", false, "Browser", "127.0.0.1")
 
 	require.NoError(t, err)
 	require.NotNil(t, tokens)

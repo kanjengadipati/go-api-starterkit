@@ -74,23 +74,23 @@ func (_m *AuthService) GetSocialAccount(userID uint, provider string) (*social.S
 	return r0, r1
 }
 
-func (_m *AuthService) Login(email string, password string, deviceID string, userAgent string, ipAddress string) (*auth.AuthTokens, error) {
-	ret := _m.Called(email, password, deviceID, userAgent, ipAddress)
+func (_m *AuthService) Login(email string, password string, deviceID string, deviceName string, trustedDevice bool, userAgent string, ipAddress string) (*auth.AuthTokens, error) {
+	ret := _m.Called(email, password, deviceID, deviceName, trustedDevice, userAgent, ipAddress)
 	if len(ret) == 0 {
 		panic("no return value specified for Login")
 	}
 	var r0 *auth.AuthTokens
-	if rf, ok := ret.Get(0).(func(string, string, string, string, string) (*auth.AuthTokens, error)); ok {
-		return rf(email, password, deviceID, userAgent, ipAddress)
+	if rf, ok := ret.Get(0).(func(string, string, string, string, bool, string, string) (*auth.AuthTokens, error)); ok {
+		return rf(email, password, deviceID, deviceName, trustedDevice, userAgent, ipAddress)
 	}
-	if rf, ok := ret.Get(0).(func(string, string, string, string, string) *auth.AuthTokens); ok {
-		r0 = rf(email, password, deviceID, userAgent, ipAddress)
+	if rf, ok := ret.Get(0).(func(string, string, string, string, bool, string, string) *auth.AuthTokens); ok {
+		r0 = rf(email, password, deviceID, deviceName, trustedDevice, userAgent, ipAddress)
 	} else if ret.Get(0) != nil {
 		r0 = ret.Get(0).(*auth.AuthTokens)
 	}
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, string, string, string) error); ok {
-		r1 = rf(email, password, deviceID, userAgent, ipAddress)
+	if rf, ok := ret.Get(1).(func(string, string, string, string, bool, string, string) error); ok {
+		r1 = rf(email, password, deviceID, deviceName, trustedDevice, userAgent, ipAddress)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -176,6 +176,17 @@ func (_m *AuthService) RevokeSession(userID uint, sessionID uint, userAgent stri
 	return ret.Error(0)
 }
 
+func (_m *AuthService) RevokeTrustedDevice(userID uint, trustedDeviceID string, userAgent string, ipAddress string) error {
+	ret := _m.Called(userID, trustedDeviceID, userAgent, ipAddress)
+	if len(ret) == 0 {
+		panic("no return value specified for RevokeTrustedDevice")
+	}
+	if rf, ok := ret.Get(0).(func(uint, string, string, string) error); ok {
+		return rf(userID, trustedDeviceID, userAgent, ipAddress)
+	}
+	return ret.Error(0)
+}
+
 func (_m *AuthService) RefreshToken(oldRefreshToken string) (*auth.AuthTokens, error) {
 	ret := _m.Called(oldRefreshToken)
 	if len(ret) == 0 {
@@ -208,6 +219,40 @@ func (_m *AuthService) Register(in *user.User, password string) error {
 		return rf(in, password)
 	}
 	return ret.Error(0)
+}
+
+func (_m *AuthService) CheckPasswordlessIdentity(channel string, target string) error {
+	ret := _m.Called(channel, target)
+	if len(ret) == 0 {
+		panic("no return value specified for CheckPasswordlessIdentity")
+	}
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		return rf(channel, target)
+	}
+	return ret.Error(0)
+}
+
+func (_m *AuthService) StartPasswordless(ctx context.Context, channel string, target string, deviceID string, userAgent string, ipAddress string) (*auth.PasswordlessStartResult, error) {
+	ret := _m.Called(ctx, channel, target, deviceID, userAgent, ipAddress)
+	if len(ret) == 0 {
+		panic("no return value specified for StartPasswordless")
+	}
+	var r0 *auth.PasswordlessStartResult
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, string) (*auth.PasswordlessStartResult, error)); ok {
+		return rf(ctx, channel, target, deviceID, userAgent, ipAddress)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, string) *auth.PasswordlessStartResult); ok {
+		r0 = rf(ctx, channel, target, deviceID, userAgent, ipAddress)
+	} else if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*auth.PasswordlessStartResult)
+	}
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, string, string) error); ok {
+		r1 = rf(ctx, channel, target, deviceID, userAgent, ipAddress)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 func (_m *AuthService) RequestOTP(ctx context.Context, channel string, target string, ipAddress string, userAgent string) error {
@@ -294,6 +339,29 @@ func (_m *AuthService) VerifyOTP(ctx context.Context, input auth.VerifyOTPInput)
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, auth.VerifyOTPInput) error); ok {
 		r1 = rf(ctx, input)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+func (_m *AuthService) VerifyMagicLink(token string, deviceID string, deviceName string, trustedDevice bool, userAgent string, ipAddress string) (*auth.AuthTokens, error) {
+	ret := _m.Called(token, deviceID, deviceName, trustedDevice, userAgent, ipAddress)
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyMagicLink")
+	}
+	var r0 *auth.AuthTokens
+	if rf, ok := ret.Get(0).(func(string, string, string, bool, string, string) (*auth.AuthTokens, error)); ok {
+		return rf(token, deviceID, deviceName, trustedDevice, userAgent, ipAddress)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string, bool, string, string) *auth.AuthTokens); ok {
+		r0 = rf(token, deviceID, deviceName, trustedDevice, userAgent, ipAddress)
+	} else if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*auth.AuthTokens)
+	}
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string, bool, string, string) error); ok {
+		r1 = rf(token, deviceID, deviceName, trustedDevice, userAgent, ipAddress)
 	} else {
 		r1 = ret.Error(1)
 	}

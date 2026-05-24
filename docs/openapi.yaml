@@ -93,12 +93,7 @@ paths:
     post:
       tags: [Auth]
       summary: Login with email and password
-      parameters:
-        - in: header
-          name: X-Device-ID
-          required: false
-          schema:
-            type: string
+      description: Creates a refresh-token session and lets the API assign or reuse the `pleco_device_id` HttpOnly cookie.
       requestBody:
         required: true
         content:
@@ -110,7 +105,7 @@ paths:
           description: Login success
           headers:
             Set-Cookie:
-              description: HttpOnly refresh-token cookie named `pleco_refresh_token`
+              description: HttpOnly cookies named `pleco_refresh_token` and `pleco_device_id`
               schema:
                 type: string
           content:
@@ -128,7 +123,7 @@ paths:
     post:
       tags: [Auth]
       summary: Request a passwordless OTP
-      description: Sends an OTP through the configured WhatsApp or email provider.
+      description: Sends an OTP through the configured WhatsApp or email provider. For WhatsApp, target may be an E.164 phone number or an account email with a saved WhatsApp number.
       requestBody:
         required: true
         content:
@@ -155,16 +150,72 @@ paths:
               schema:
                 $ref: '#/components/schemas/EnvelopeError'
 
+  /auth/passwordless/check:
+    post:
+      tags: [Auth]
+      summary: Validate passwordless identity without sending a challenge
+      description: Validates the email address or WhatsApp number before the user moves to the delivery confirmation step. This endpoint does not send OTP or magic-link messages.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordlessIdentityRequest'
+      responses:
+        '200':
+          description: Passwordless identity accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeMessage'
+        '400':
+          description: Invalid email address or WhatsApp number
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /auth/passwordless/start:
+    post:
+      tags: [Auth]
+      summary: Start passwordless delivery
+      description: The API uses the backend-owned `pleco_device_id` cookie to decide whether to send a trusted-device magic link or a normal OTP. The response only tells the client which UI step to show.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordlessIdentityRequest'
+      responses:
+        '200':
+          description: Passwordless delivery started
+          headers:
+            Set-Cookie:
+              description: HttpOnly device identity cookie named `pleco_device_id`
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePasswordlessStart'
+        '400':
+          description: Invalid target or delivery failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '429':
+          description: OTP rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
   /auth/verify-otp:
     post:
       tags: [Auth]
       summary: Verify a passwordless OTP
-      parameters:
-        - in: header
-          name: X-Device-ID
-          required: false
-          schema:
-            type: string
+      description: Verifies the OTP, creates a session, and optionally marks the backend-owned device cookie as trusted.
       requestBody:
         required: true
         content:
@@ -176,7 +227,7 @@ paths:
           description: OTP verified and session created
           headers:
             Set-Cookie:
-              description: HttpOnly refresh-token cookie named `pleco_refresh_token`
+              description: HttpOnly cookies named `pleco_refresh_token` and `pleco_device_id`
               schema:
                 type: string
           content:
@@ -185,6 +236,36 @@ paths:
                 $ref: '#/components/schemas/EnvelopeAccessToken'
         '401':
           description: Invalid or expired OTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /auth/magic-link/verify:
+    post:
+      tags: [Auth]
+      summary: Verify a trusted-device magic link
+      description: Magic-link tokens are stored as hashes in the database, expire, and are consumed in one transaction. Reused links are rejected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyMagicLinkRequest'
+      responses:
+        '200':
+          description: Magic link verified and session created
+          headers:
+            Set-Cookie:
+              description: HttpOnly cookies named `pleco_refresh_token` and `pleco_device_id`
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAccessToken'
+        '401':
+          description: Invalid, expired, or already consumed magic link
           content:
             application/json:
               schema:
@@ -383,7 +464,7 @@ paths:
           description: Refresh success
           headers:
             Set-Cookie:
-              description: Rotated HttpOnly refresh-token cookie named `pleco_refresh_token`
+              description: Rotated HttpOnly refresh-token cookie named `pleco_refresh_token` and refreshed device cookie named `pleco_device_id`
               schema:
                 type: string
           content:
@@ -401,14 +482,9 @@ paths:
     post:
       tags: [Auth]
       summary: Logout current device
+      description: Uses the backend-owned `pleco_device_id` cookie to identify the current session.
       security:
         - bearerAuth: []
-      parameters:
-        - in: header
-          name: X-Device-ID
-          required: true
-          schema:
-            type: string
       responses:
         '200':
           description: Logout success
@@ -448,21 +524,15 @@ paths:
     post:
       tags: [Auth]
       summary: Revoke all active sessions except the current device
-      description: Keeps the current device session, revokes refresh-token-backed sessions on other devices, rotates the refresh cookie, and returns a fresh access token.
+      description: Keeps the current device session from the `pleco_device_id` cookie, revokes refresh-token-backed sessions on other devices, rotates the refresh cookie, and returns a fresh access token.
       security:
         - bearerAuth: []
-      parameters:
-        - in: header
-          name: X-Device-ID
-          required: true
-          schema:
-            type: string
       responses:
         '200':
           description: Other sessions revoked and current device refresh cookie rotated
           headers:
             Set-Cookie:
-              description: Rotated HttpOnly refresh-token cookie named `pleco_refresh_token`
+              description: Rotated HttpOnly refresh-token cookie named `pleco_refresh_token` and refreshed device cookie named `pleco_device_id`
               schema:
                 type: string
           content:
@@ -480,14 +550,9 @@ paths:
     get:
       tags: [Auth]
       summary: List active sessions for the current user
+      description: Uses the backend-owned `pleco_device_id` cookie to identify which listed session is current.
       security:
         - bearerAuth: []
-      parameters:
-        - in: header
-          name: X-Device-ID
-          required: false
-          schema:
-            type: string
       responses:
         '200':
           description: Sessions fetched
@@ -533,7 +598,7 @@ paths:
           description: Social login success
           headers:
             Set-Cookie:
-              description: HttpOnly refresh-token cookie named `pleco_refresh_token`
+              description: HttpOnly cookies named `pleco_refresh_token` and `pleco_device_id`
               schema:
                 type: string
           content:
@@ -1151,7 +1216,26 @@ components:
           enum: [whatsapp, email]
         target:
           type: string
-          example: '+628123456789'
+          description: Email address for email OTP, E.164 phone number for WhatsApp OTP, or account email for WhatsApp OTP when the account has a saved WhatsApp number.
+          example: user@example.com
+    PasswordlessIdentityRequest:
+      type: object
+      required: [channel, target]
+      properties:
+        channel:
+          type: string
+          enum: [whatsapp, email]
+        target:
+          type: string
+          description: Email address for email flow or E.164 phone number for WhatsApp flow.
+          example: user@example.com
+    PasswordlessStartResult:
+      type: object
+      properties:
+        next_step:
+          type: string
+          enum: [magic_link, otp]
+          description: Client UI step selected by the backend.
     VerifyOTPRequest:
       type: object
       required: [channel, target, otp]
@@ -1161,12 +1245,25 @@ components:
           enum: [whatsapp, email]
         target:
           type: string
-          example: '+628123456789'
+          description: Same target used when requesting the OTP.
+          example: user@example.com
         otp:
           type: string
           minLength: 6
           maxLength: 6
           example: '123456'
+        device_name:
+          type: string
+          example: Chrome macOS
+        trusted_device:
+          type: boolean
+    VerifyMagicLinkRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: Raw magic-link token from the email link.
         device_name:
           type: string
           example: Chrome macOS
@@ -1553,6 +1650,17 @@ components:
           type: string
         data:
           $ref: '#/components/schemas/AccessToken'
+    EnvelopePasswordlessStart:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+          example: Passwordless login started
+        data:
+          $ref: '#/components/schemas/PasswordlessStartResult'
     EnvelopeSessions:
       type: object
       properties:

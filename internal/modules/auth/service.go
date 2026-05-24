@@ -50,9 +50,16 @@ type socialRepositoryTx interface {
 	WithTx(tx *gorm.DB) permissionless.Repository
 }
 
+type magicLinkRepositoryTx interface {
+	Create(token *MagicLinkToken) error
+	FindActiveByTokenHash(tokenHash string, now time.Time) (*MagicLinkToken, error)
+	Consume(id string, consumedAt time.Time) error
+	WithTx(tx *gorm.DB) magicLinkRepository
+}
+
 type AuthService interface {
 	Register(user *userModule.User, password string) error
-	Login(email, password, deviceID, userAgent, ipAddress string) (*AuthTokens, error)
+	Login(email, password, deviceID, deviceName string, trustedDevice bool, userAgent, ipAddress string) (*AuthTokens, error)
 	Logout(userID uint, deviceID string) error
 	LogoutAll(userID uint, userAgent, ipAddress string) error
 	LogoutOtherSessions(userID uint, currentDeviceID, userAgent, ipAddress string) (*AuthTokens, error)
@@ -60,12 +67,16 @@ type AuthService interface {
 	GetProfile(userID uint) (*userModule.User, error)
 	ListSessions(userID uint, currentDeviceID string) ([]Session, error)
 	RevokeSession(userID, sessionID uint, userAgent, ipAddress string) error
+	RevokeTrustedDevice(userID uint, trustedDeviceID string, userAgent, ipAddress string) error
 	ResendVerification(email string) error
 	VerifyEmail(token string) error
 	ForgotPassword(email string) error
 	ResetPassword(token string, newPassword string) error
 	SocialLogin(provider string, idToken string, deviceID, userAgent, ipAddress string) (*AuthTokens, error)
 	GetSocialAccount(userID uint, provider string) (*permissionless.SocialAccount, error)
+	CheckPasswordlessIdentity(channel, target string) error
+	StartPasswordless(ctx context.Context, channel, target, deviceID, userAgent, ipAddress string) (*PasswordlessStartResult, error)
+	VerifyMagicLink(tokenString, deviceID, deviceName string, trustedDevice bool, userAgent, ipAddress string) (*AuthTokens, error)
 	RequestOTP(ctx context.Context, channel, target, ipAddress, userAgent string) error
 	VerifyOTP(ctx context.Context, input VerifyOTPInput) (*AuthTokens, error)
 }
@@ -77,6 +88,7 @@ type authService struct {
 	EmailVerificationRepo tokenModule.EmailVerificationRepository
 	SocialRepo            permissionless.Repository
 	OTPRepo               otpRepository
+	MagicLinkRepo         magicLinkRepository
 	OTPChannels           map[string]otp.Channel
 	JWT                   *services.JWTService
 	EmailSvc              services.EmailService
@@ -104,17 +116,23 @@ var _ AuthService = (*authService)(nil)
 type AuthTokens struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
+	DeviceID     string `json:"-"`
 }
 
 type Session struct {
-	ID        uint      `json:"id"`
-	DeviceID  string    `json:"device_id"`
-	UserAgent string    `json:"user_agent"`
-	IPAddress string    `json:"ip_address"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	ExpiredAt time.Time `json:"expired_at"`
-	IsCurrent bool      `json:"is_current"`
+	ID              uint       `json:"id"`
+	DeviceID        string     `json:"device_id"`
+	DeviceName      string     `json:"device_name"`
+	TrustedDeviceID string     `json:"trusted_device_id,omitempty"`
+	UserAgent       string     `json:"user_agent"`
+	IPAddress       string     `json:"ip_address"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	ExpiredAt       time.Time  `json:"expired_at"`
+	IsCurrent       bool       `json:"is_current"`
+	IsTrusted       bool       `json:"is_trusted"`
+	TrustedAt       *time.Time `json:"trusted_at,omitempty"`
+	LastTrustedAt   *time.Time `json:"last_trusted_at,omitempty"`
 }
 
 const (
@@ -167,6 +185,7 @@ func NewAuthService(
 	}
 	if db != nil {
 		s.OTPRepo = newOTPRepository(db)
+		s.MagicLinkRepo = newMagicLinkRepository(db)
 	}
 	s.OTPChannels = providers.NewOTPChannels(cfg)
 	for _, opt := range opts {
