@@ -77,8 +77,9 @@
                   "pm.test('admin login returns access token and auth cookies', function () {",
                   "  pm.expect(loginData.access_token).to.be.a('string').and.not.empty;",
                   "  pm.expect(loginData.refresh_token).to.be.undefined;",
-                  "  pm.expect(pm.response.headers.get('Set-Cookie') || '').to.include('pleco_refresh_token=');",
-                  "  pm.expect(pm.response.headers.get('Set-Cookie') || '').to.include('pleco_device_id=');",
+                  "  const cookies = pm.response.headers.all().filter(function(h) { return h.key.toLowerCase() === 'set-cookie'; }).map(function(h) { return h.value; }).join(', ');",
+                  "  pm.expect(cookies).to.include('pleco_refresh_token=');",
+                  "  pm.expect(cookies).to.include('pleco_device_id=');",
                   "});",
                   "pm.environment.set('access_token', loginData.access_token);"
                 ]
@@ -248,8 +249,9 @@
                       "pm.test('logout other sessions returns access token and auth cookies', function () {",
                       "  pm.expect(logoutOtherSessionsData.access_token).to.be.a('string').and.not.empty;",
                       "  pm.expect(logoutOtherSessionsData.refresh_token).to.be.undefined;",
-                      "  pm.expect(pm.response.headers.get('Set-Cookie') || '').to.include('pleco_refresh_token=');",
-                      "  pm.expect(pm.response.headers.get('Set-Cookie') || '').to.include('pleco_device_id=');",
+                      "  const cookies = pm.response.headers.all().filter(function(h) { return h.key.toLowerCase() === 'set-cookie'; }).map(function(h) { return h.value; }).join(', ');",
+                      "  pm.expect(cookies).to.include('pleco_refresh_token=');",
+                      "  pm.expect(cookies).to.include('pleco_device_id=');",
                       "});",
                       "pm.environment.set('access_token', logoutOtherSessionsData.access_token);"
                     ]
