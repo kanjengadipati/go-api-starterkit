@@ -72,6 +72,7 @@ type AppConfig struct {
 	RedisURL                 string
 	TrustedProxies           []string
 	CORSAllowedOrigins       []string
+	RequestBodyLimitBytes    int64
 	JWTSecret                []byte
 	AccessTokenExpiryMinutes int
 	AdminEmail               string
@@ -94,6 +95,7 @@ func LoadAppConfig() AppConfig {
 		RedisURL:                 GetEnv("REDIS_URL", ""),
 		TrustedProxies:           envList("TRUSTED_PROXIES", []string{"127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}),
 		CORSAllowedOrigins:       corsAllowedOrigins(),
+		RequestBodyLimitBytes:    int64(envInt("REQUEST_BODY_LIMIT_BYTES", 1<<20)),
 		JWTSecret:                []byte(GetEnv("JWT_SECRET", "")),
 		AccessTokenExpiryMinutes: envInt("ACCESS_TOKEN_EXPIRY_MINUTES", 15),
 		AdminEmail:               GetEnv("ADMIN_EMAIL", ""),
@@ -161,6 +163,10 @@ func (c *AppConfig) Validate() error {
 
 	if len(c.JWTSecret) < 32 {
 		problems = append(problems, "JWT_SECRET must be at least 32 bytes for cryptographic strength")
+	}
+
+	if c.RequestBodyLimitBytes < 1 {
+		problems = append(problems, "REQUEST_BODY_LIMIT_BYTES must be greater than 0")
 	}
 
 	port, err := strconv.Atoi(strings.TrimSpace(c.Port))

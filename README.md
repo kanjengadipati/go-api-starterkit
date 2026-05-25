@@ -1170,6 +1170,7 @@ go build -tags netgo -ldflags '-s -w' -o app ./cmd/api
 - The default rate limiter is in-memory for local single-instance development. When Redis is configured, Pleco switches to a shared Redis-backed store suitable for multi-instance deployments.
 - The app sets baseline security headers including CSP, HSTS (on HTTPS), `X-Content-Type-Options`, and `X-Frame-Options`.
 - Request IDs are propagated via the `X-Request-ID` header for tracing across the gateway and backend.
+- Request bodies are capped by `REQUEST_BODY_LIMIT_BYTES` to reduce accidental or abusive oversized payloads.
 - Trusted proxy handling is configurable through `TRUSTED_PROXIES` so client IP-based audit and rate limiting work correctly behind a gateway.
 - Device identity is managed by the API through the `pleco_device_id` HttpOnly cookie. Browser clients should not create or persist their own device id in JavaScript.
 - Refresh tokens are stored in the `pleco_refresh_token` HttpOnly cookie and rotated on every use. Pleco keeps refresh-token family metadata so reuse of an already-rotated token can revoke the whole family and invalidate prior access tokens.
@@ -1183,6 +1184,7 @@ go build -tags netgo -ldflags '-s -w' -o app ./cmd/api
 - App bootstrap lives in [`internal/appsetup/`](internal/appsetup)
 - Runtime configuration is centralized in [`internal/config/app.go`](internal/config/app.go)
 - Auth service logic is split by use case under [`internal/modules/auth/`](internal/modules/auth)
+- Cache invalidation is owned by the service that mutates the data. Auth invalidates user/session cache entries after login, password changes, token revocation, and social-account changes; user/admin updates invalidate the affected user profile and list caches.
 - Repository constructors take explicit DB dependencies instead of relying on global DB state
 - Admin routes use permission checks instead of role-only checks for finer authorization control
 - The recommended Go entrypoint lives in [`cmd/api/`](cmd/api)

@@ -1,6 +1,8 @@
 package httpx
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
@@ -37,6 +39,18 @@ func FormatValidationError(err error) []FieldError {
 }
 
 func ValidationError(c *gin.Context, errors interface{}) {
+	if message, ok := errors.(string); ok && strings.Contains(message, "request body too large") {
+		ErrorWithCode(c, 413, "REQUEST_BODY_TOO_LARGE", "Request body is too large")
+		return
+	}
+	if fields, ok := errors.([]FieldError); ok {
+		for _, field := range fields {
+			if strings.Contains(field.Message, "request body too large") {
+				ErrorWithCode(c, 413, "REQUEST_BODY_TOO_LARGE", "Request body is too large")
+				return
+			}
+		}
+	}
 	c.JSON(400, Envelope{
 		Status:  "error",
 		Message: "Validation failed",

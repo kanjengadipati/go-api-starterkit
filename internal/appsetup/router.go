@@ -29,6 +29,17 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtSe
 	permissionModule := permission.BuildModule(db, cacheStore)
 	roleModule := role.BuildModule(db, cacheStore)
 	auditModule := audit.BuildModule(db, aiService)
+	api.Use(middleware.SecurityAuditLogger(func(event middleware.SecurityAuditEvent) {
+		auditModule.Service.SafeRecord(audit.RecordInput{
+			ActorUserID: event.UserID,
+			Action:      "security_http_event",
+			Resource:    "http",
+			Status:      "failed",
+			Description: event.Description,
+			IPAddress:   event.IPAddress,
+			UserAgent:   event.UserAgent,
+		})
+	}))
 	userModule := user.BuildModule(db, auditModule.Service, cacheStore)
 	userModule.Handler.PermissionSvc = permissionModule.Service
 	userModule.Handler.Cache = cacheStore
@@ -77,6 +88,7 @@ func BuildRouter(db *gorm.DB, cfg config.AppConfig, jwtService *services.JWTServ
 		return nil, err
 	}
 	router.Use(middleware.CORS(cfg.CORSAllowedOrigins))
+	router.Use(middleware.BodySizeLimit(cfg.RequestBodyLimitBytes))
 	router.Use(middleware.RequestID())
 	router.Use(middleware.StructuredLogger())
 	router.Use(middleware.RecoveryLogger())

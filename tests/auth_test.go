@@ -243,9 +243,9 @@ func TestRegister_Success(t *testing.T) {
 	mockService := new(mocks.AuthService)
 	handler := auth.AuthHandler{AuthService: mockService}
 
-	body := `{"name":"test","email":"test@mail.com","password":"12345678"}`
+	body := `{"name":"test","email":"test@mail.com","password":"Secret123!"}`
 
-	mockService.On("Register", mock.Anything, "12345678").Return(nil)
+	mockService.On("Register", mock.Anything, "Secret123!").Return(nil)
 
 	c, w := setupTest()
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(body))
@@ -638,7 +638,7 @@ func TestAuthService_Register_IgnoresEmailDeliveryFailure(t *testing.T) {
 	err = service.Register(&user.User{
 		Name:  "Test",
 		Email: "test@mail.com",
-	}, "12345678")
+	}, "Secret123!")
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, createdUser)
@@ -787,7 +787,7 @@ func TestAuthService_Login_ReplacesExistingDeviceRefreshTokens(t *testing.T) {
 	jwtService := services.NewJWTService([]byte("super_secret_key_123_must_be_32_bytes_long_minimum"))
 	userRepo := &stubUserRepo{
 		findByEmail: func(email string) (*user.User, error) {
-			hashed, err := services.HashPassword("secret123")
+			hashed, err := services.HashPassword("Secret123!")
 			require.NoError(t, err)
 			return &user.User{
 				Model:              gorm.Model{ID: 5},
@@ -826,7 +826,7 @@ func TestAuthService_Login_ReplacesExistingDeviceRefreshTokens(t *testing.T) {
 		config.AppConfig{},
 	)
 
-	tokens, err := service.Login("test@mail.com", "secret123", "web", "Browser", false, "Browser", "127.0.0.1")
+	tokens, err := service.Login("test@mail.com", "Secret123!", "web", "Browser", false, "Browser", "127.0.0.1")
 
 	require.NoError(t, err)
 	require.NotNil(t, tokens)
@@ -1166,7 +1166,7 @@ func TestResetPassword_RevokesRefreshTokensAndBumpsAccessTokenVersion(t *testing
 		config.AppConfig{},
 	)
 
-	err = service.ResetPassword(resetToken, "newSecret123")
+	err = service.ResetPassword(resetToken, "Newsecret123!")
 
 	require.NoError(t, err)
 	assert.Equal(t, uint(3), updatedVersion)
@@ -1227,10 +1227,10 @@ func TestResetPassword_Success(t *testing.T) {
 	mockService := new(mocks.AuthService)
 	handler := auth.AuthHandler{AuthService: mockService}
 
-	mockService.On("ResetPassword", "token123", "newSecret123").Return(nil)
+	mockService.On("ResetPassword", "token123", "Newsecret123!").Return(nil)
 
 	c, w := setupTest()
-	req := httptest.NewRequest(http.MethodPost, "/reset", strings.NewReader(`{"token":"token123","new_password":"newSecret123"}`))
+	req := httptest.NewRequest(http.MethodPost, "/reset", strings.NewReader(`{"token":"token123","new_password":"Newsecret123!"}`))
 	req.Header.Set("Content-Type", "application/json")
 	c.Request = req
 

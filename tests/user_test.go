@@ -189,7 +189,7 @@ func TestChangePassword_Success(t *testing.T) {
 	refreshRepo := &stubRefreshTokenRepo{}
 	service := &user.Service{UserRepo: repo, RefreshTokenRepo: refreshRepo}
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte("secret123"), 14)
+	hashed, err := bcrypt.GenerateFromPassword([]byte("Secret123!"), 14)
 	assert.NoError(t, err)
 
 	repo.findByID = func(id uint) (*user.User, error) {
@@ -199,14 +199,14 @@ func TestChangePassword_Success(t *testing.T) {
 		}, nil
 	}
 	repo.update = func(u *user.User) error {
-		return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte("newsecret123"))
+		return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte("Newsecret123!!"))
 	}
 	refreshRepo.deleteByUser = func(userID uint) error {
 		assert.Equal(t, uint(1), userID)
 		return nil
 	}
 
-	err = service.ChangePassword(1, "secret123", "newsecret123")
+	err = service.ChangePassword(1, "Secret123!", "Newsecret123!!")
 
 	assert.NoError(t, err)
 }
@@ -222,7 +222,7 @@ func TestCreateUser_EmailAlreadyExists(t *testing.T) {
 	_, err := service.CreateUser(user.CreateUserRequest{
 		Name:     "Tester",
 		Email:    "test@mail.com",
-		Password: "secret123",
+		Password: "Secret123!",
 	})
 
 	assert.EqualError(t, err, "email already in use")
@@ -235,7 +235,7 @@ func TestCreateUser_RejectsSuperadminRole(t *testing.T) {
 	_, err := service.CreateUser(user.CreateUserRequest{
 		Name:     "Tester",
 		Email:    "test@mail.com",
-		Password: "secret123",
+		Password: "Secret123!",
 		Role:     "superadmin",
 	})
 
@@ -246,7 +246,7 @@ func TestChangePassword_InvalidCurrentPassword(t *testing.T) {
 	repo := &stubUserRepository{}
 	service := &user.Service{UserRepo: repo, RefreshTokenRepo: &stubRefreshTokenRepo{}}
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte("secret123"), 14)
+	hashed, err := bcrypt.GenerateFromPassword([]byte("Secret123!"), 14)
 	assert.NoError(t, err)
 
 	repo.findByID = func(id uint) (*user.User, error) {
@@ -256,7 +256,7 @@ func TestChangePassword_InvalidCurrentPassword(t *testing.T) {
 		}, nil
 	}
 
-	err = service.ChangePassword(1, "wrong-password", "newsecret123")
+	err = service.ChangePassword(1, "wrong-password", "Newsecret123!!")
 
 	assert.EqualError(t, err, "current password is incorrect")
 }
@@ -266,7 +266,7 @@ func TestChangePassword_PropagatesRefreshTokenRevocationFailure(t *testing.T) {
 	refreshRepo := &stubRefreshTokenRepo{}
 	service := &user.Service{UserRepo: repo, RefreshTokenRepo: refreshRepo}
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte("secret123"), 14)
+	hashed, err := bcrypt.GenerateFromPassword([]byte("Secret123!"), 14)
 	assert.NoError(t, err)
 
 	repo.findByID = func(id uint) (*user.User, error) {
@@ -281,7 +281,7 @@ func TestChangePassword_PropagatesRefreshTokenRevocationFailure(t *testing.T) {
 		return errors.New("delete failed")
 	}
 
-	err = service.ChangePassword(1, "secret123", "newsecret123")
+	err = service.ChangePassword(1, "Secret123!", "Newsecret123!!")
 
 	assert.EqualError(t, err, "delete failed")
 }

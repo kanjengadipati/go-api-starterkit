@@ -43,7 +43,7 @@ func TestAPI_Login_Integration(t *testing.T) {
 
 	// Define Test Data
 	email := "test@example.com"
-	password := "password123"
+	password := "Password123!"
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
 	// Mock DB Expectations for Login

@@ -7,9 +7,10 @@ import (
 
 func TestAppConfigValidateAcceptsMinimalValidConfig(t *testing.T) {
 	cfg := AppConfig{
-		Port:        "8080",
-		DatabaseURL: "postgresql://postgres:password@localhost:5432/auth_db?sslmode=disable",
-		JWTSecret:   []byte("super_secret_key_123_must_be_32_bytes_long_minimum"),
+		Port:                  "8080",
+		DatabaseURL:           "postgresql://postgres:password@localhost:5432/auth_db?sslmode=disable",
+		RequestBodyLimitBytes: 1 << 20,
+		JWTSecret:             []byte("super_secret_key_123_must_be_32_bytes_long_minimum"),
 	}
 
 	if err := cfg.Validate(); err != nil {
