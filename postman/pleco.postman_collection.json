@@ -20,7 +20,7 @@
     },
     {
       "key": "user_password",
-      "value": "secret123"
+      "value": "Secret123!"
     },
     {
       "key": "managed_user_id",
@@ -32,7 +32,7 @@
     },
     {
       "key": "managed_user_password",
-      "value": "secret123"
+      "value": "Secret123!"
     },
     {
       "key": "verify_token",
@@ -355,7 +355,7 @@
                   "  pm.expect([200, 400, 401]).to.include(pm.response.code);",
                   "});",
                   "if (pm.response.code === 200) {",
-                  "  pm.environment.set('user_password', 'newsecret123');",
+                  "  pm.environment.set('user_password', 'newSecret123!');",
                   "  pm.environment.unset('access_token');",
                   "  console.log('password changed; access token cleared; the refresh cookie is cleared by the API when applicable');",
                   "}"
@@ -378,7 +378,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"current_password\": \"{{user_password}}\",\n  \"new_password\": \"newsecret123\"\n}"
+              "raw": "{\n  \"current_password\": \"{{user_password}}\",\n  \"new_password\": \"newSecret123!\"\n}"
             },
             "url": "{{base_url}}/auth/change-password"
           }
@@ -680,7 +680,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"token\": \"{{reset_token}}\",\n  \"new_password\": \"newsecret123\"\n}"
+              "raw": "{\n  \"token\": \"{{reset_token}}\",\n  \"new_password\": \"newSecret123!\"\n}"
             },
             "url": "{{base_url}}/auth/reset-password"
           }

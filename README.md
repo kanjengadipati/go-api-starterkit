@@ -504,7 +504,7 @@ Content-Type: application/json
 {
   "name": "Tester",
   "email": "tester@example.com",
-  "password": "secret123"
+  "password": "Secret123!"
 }
 ```
 
@@ -525,7 +525,7 @@ Content-Type: application/json
 
 {
   "email": "tester@example.com",
-  "password": "secret123"
+  "password": "Secret123!"
 }
 ```
 
@@ -639,7 +639,7 @@ curl -X POST "$BASE_URL/auth/register" \
   -d '{
     "name": "Tester",
     "email": "tester@example.com",
-    "password": "secret123"
+    "password": "Secret123!"
   }'
 ```
 
@@ -650,7 +650,7 @@ curl -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "tester@example.com",
-    "password": "secret123"
+    "password": "Secret123!"
   }'
 ```
 
@@ -663,7 +663,7 @@ TOKENS=$(curl -s -c "$COOKIE_JAR" -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "tester@example.com",
-    "password": "secret123"
+    "password": "Secret123!"
   }')
 
 ACCESS_TOKEN=$(echo $TOKENS | jq -r '.data.access_token')
@@ -692,8 +692,8 @@ curl -X PATCH "$BASE_URL/auth/change-password" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "current_password": "secret123",
-    "new_password": "newsecret123"
+    "current_password": "Secret123!",
+    "new_password": "Newsecret123!"
   }'
 ```
 
@@ -741,7 +741,7 @@ curl -X POST "$BASE_URL/auth/reset-password" \
   -H "Content-Type: application/json" \
   -d '{
     "token": "<reset-token>",
-    "new_password": "newsecret123"
+    "new_password": "Newsecret123!"
   }'
 ```
 
@@ -837,7 +837,7 @@ curl -X POST "$BASE_URL/auth/admin/users" \
   -d '{
     "name": "Managed User",
     "email": "managed@example.com",
-    "password": "secret123",
+    "password": "Secret123!",
     "role": "user",
     "is_verified": true
   }'

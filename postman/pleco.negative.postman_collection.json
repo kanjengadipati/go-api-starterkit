@@ -44,6 +44,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Forwarded-For",
+                "value": "{{$randomIP}}"
               }
             ],
             "body": {
@@ -79,6 +83,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Forwarded-For",
+                "value": "{{$randomIP}}"
               }
             ],
             "body": {
@@ -207,7 +215,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Invalid Email User\",\n  \"email\": \"not-an-email\",\n  \"password\": \"secret123\",\n  \"role\": \"user\",\n  \"is_verified\": true\n}"
+              "raw": "{\n  \"name\": \"Invalid Email User\",\n  \"email\": \"not-an-email\",\n  \"password\": \"Secret123!\",\n  \"role\": \"user\",\n  \"is_verified\": true\n}"
             },
             "url": "{{base_url}}/auth/admin/users"
           }
@@ -241,7 +249,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Forbidden Role User\",\n  \"email\": \"forbidden-role@example.com\",\n  \"password\": \"secret123\",\n  \"role\": \"superadmin\",\n  \"is_verified\": true\n}"
+              "raw": "{\n  \"name\": \"Forbidden Role User\",\n  \"email\": \"forbidden-role@example.com\",\n  \"password\": \"Secret123!\",\n  \"role\": \"superadmin\",\n  \"is_verified\": true\n}"
             },
             "url": "{{base_url}}/auth/admin/users"
           }

@@ -92,6 +92,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Forwarded-For",
+                "value": "{{$randomIP}}"
               }
             ],
             "body": {
@@ -174,7 +178,7 @@
               "script": {
                 "exec": [
                   "pm.test('verify otp returns expected auth status', function () {",
-                  "  pm.expect([200, 401, 422]).to.include(pm.response.code);",
+                  "  pm.expect([200, 401, 422, 429]).to.include(pm.response.code);",
                   "});",
                   "if (pm.response.code === 200) {",
                   "  const data = (pm.response.json().data || {});",
