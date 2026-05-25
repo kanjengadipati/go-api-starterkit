@@ -24,5 +24,18 @@ func HandleError(c *gin.Context, err error) {
 		return
 	}
 
+	if errors.Is(err, domain.ErrConflict) {
+		ErrorWithCode(c, http.StatusConflict, string(domain.CodeConflict), err.Error())
+		return
+	}
+	if errors.Is(err, domain.ErrInvalidPermission) {
+		ErrorWithCode(c, http.StatusBadRequest, string(domain.CodeValidationFailed), err.Error())
+		return
+	}
+	if errors.Is(err, domain.ErrAIInvestigatorDisabled) {
+		ErrorWithCode(c, http.StatusServiceUnavailable, string(domain.CodeInvalidRequest), err.Error())
+		return
+	}
+
 	ErrorWithCode(c, http.StatusInternalServerError, ErrCodeInternalError, "internal server error")
 }

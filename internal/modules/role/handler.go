@@ -4,7 +4,9 @@ import (
 	"errors"
 	"strconv"
 
+	"pleco-api/internal/domain"
 	"pleco-api/internal/httpx"
+	"pleco-api/internal/modules/audit"
 
 	"gorm.io/gorm"
 
@@ -102,12 +104,32 @@ func (h *Handler) UpdateRolePermissions(c *gin.Context) {
 			httpx.Error(c, 404, "Role not found")
 			return
 		}
-		if err.Error() == "one or more permissions are invalid" {
-			httpx.Error(c, 400, err.Error())
+		if errors.Is(err, domain.ErrInvalidPermission) {
+			httpx.HandleError(c, err)
 			return
 		}
 		httpx.Error(c, 500, "Failed to update role permissions")
 		return
+	}
+
+	if h.RoleService.AuditSvc != nil {
+		var actorUserID *uint
+		if value, exists := c.Get("user_id"); exists {
+			if parsed, ok := value.(uint); ok {
+				actorUserID = &parsed
+			}
+		}
+
+		h.RoleService.AuditSvc.SafeRecord(audit.RecordInput{
+			ActorUserID: actorUserID,
+			Action:      "update_role_permissions",
+			Resource:    "role",
+			ResourceID:  &role.ID,
+			Status:      "success",
+			Description: "admin updated role permissions for " + role.Name,
+			IPAddress:   c.ClientIP(),
+			UserAgent:   c.GetHeader("User-Agent"),
+		})
 	}
 
 	httpx.Success(c, 200, "Role permissions updated", RolePermissionsResponse{

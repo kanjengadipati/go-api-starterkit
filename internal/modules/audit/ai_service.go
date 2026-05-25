@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"pleco-api/internal/ai"
+	"pleco-api/internal/domain"
 
 	"gorm.io/gorm"
 )
@@ -39,7 +40,7 @@ func NewInvestigatorService(repo Repository, aiService *ai.Service, auditLogServ
 
 func (s *InvestigatorService) Investigate(ctx context.Context, filter Filter) (*InvestigationResult, []AuditLog, error) {
 	if s == nil || s.AI == nil || !s.AI.Enabled() {
-		return nil, nil, errors.New("ai investigator is not enabled")
+		return nil, nil, domain.ErrAIInvestigatorDisabled
 	}
 
 	if filter.Limit <= 0 {
@@ -55,7 +56,7 @@ func (s *InvestigatorService) Investigate(ctx context.Context, filter Filter) (*
 		return nil, nil, err
 	}
 	if len(logs) == 0 {
-		return nil, nil, errors.New("no audit logs found for investigation")
+		return nil, nil, domain.NewAPIError(404, domain.CodeNotFound, "no audit logs found for investigation", nil)
 	}
 
 	input := ai.BuildJSONPrompt(

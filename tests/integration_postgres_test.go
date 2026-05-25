@@ -1,12 +1,18 @@
 package tests
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"pleco-api/internal/modules/audit"
 	"pleco-api/internal/modules/permission"
+	"pleco-api/internal/modules/role"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -122,3 +128,45 @@ func TestAuditRepository_FindAllWithFilter_WithTempTable(t *testing.T) {
 	assert.Equal(t, "update_user", logs[0].Action)
 	assert.Equal(t, "create_user", logs[1].Action)
 }
+
+func TestRoleHandler_AuditIntegration(t *testing.T) {
+	db := openPostgresIntegrationDB(t)
+	tx := setupPermissionTempTables(t, db)
+	tx = setupAuditTempTable(t, tx)
+
+	require.NoError(t, tx.Exec(`INSERT INTO roles (id, name) VALUES (1, 'admin')`).Error)
+
+	roleRepo := role.NewRepository(tx)
+	permRepo := permission.NewRepository(tx)
+	roleSvc := role.NewService(roleRepo, permRepo)
+
+	auditRepo := audit.NewRepository(tx)
+	auditSvc := audit.NewService(auditRepo)
+	roleSvc.AuditSvc = auditSvc
+
+	handler := role.NewHandler(roleSvc)
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req := httptest.NewRequest(http.MethodPut, "/roles/1/permissions", strings.NewReader(`{"permissions":[]}`))
+	req.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	c.Request = req
+	c.Set("user_id", uint(42))
+
+	handler.UpdateRolePermissions(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Wait for async audit log
+	time.Sleep(100 * time.Millisecond)
+
+	var logEntry audit.AuditLog
+	err := tx.First(&logEntry, "action = ?", "update_role_permissions").Error
+	require.NoError(t, err)
+	assert.Equal(t, "role", logEntry.Resource)
+	assert.Equal(t, uint(42), *logEntry.ActorUserID)
+	assert.Equal(t, "success", logEntry.Status)
+}
+

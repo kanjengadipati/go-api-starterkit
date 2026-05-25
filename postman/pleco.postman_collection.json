@@ -57,6 +57,14 @@
     {
       "key": "apple_id_token",
       "value": ""
+    },
+    {
+      "key": "magic_link_token",
+      "value": ""
+    },
+    {
+      "key": "trusted_device_id",
+      "value": ""
     }
   ],
   "item": [
@@ -214,6 +222,104 @@
               "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\"\n}"
             },
             "url": "{{base_url}}/auth/login"
+          }
+        },
+        {
+          "name": "Passwordless Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('passwordless check returns accepted or validation status', function () {",
+                  "  pm.expect([200, 400, 422, 429]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"email\",\n  \"target\": \"{{admin_email}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/passwordless/check"
+          }
+        },
+        {
+          "name": "Passwordless Start",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('passwordless start returns known status', function () {",
+                  "  pm.expect([200, 400, 422, 429]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(['otp', 'magic_link']).to.include(json.data.next_step);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"email\",\n  \"target\": \"{{admin_email}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/passwordless/start"
+          }
+        },
+        {
+          "name": "Verify Magic Link",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('magic link verify returns known status', function () {",
+                  "  pm.expect([200, 401, 422, 429]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const data = (pm.response.json().data || {});",
+                  "  pm.environment.set('access_token', data.access_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{magic_link_token}}\",\n  \"device_name\": \"Postman\",\n  \"trusted_device\": true\n}"
+            },
+            "url": "{{base_url}}/auth/magic-link/verify"
           }
         },
         {
@@ -508,6 +614,36 @@
               }
             ],
             "url": "{{base_url}}/auth/sessions/{{session_id}}"
+          }
+        },
+        {
+          "name": "Revoke Trusted Device",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('revoke trusted device returns known status', function () {",
+                  "  pm.expect([200, 400, 401, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/trusted-devices/{{trusted_device_id}}"
           }
         },
         {

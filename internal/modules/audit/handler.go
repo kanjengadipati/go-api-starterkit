@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"pleco-api/internal/ai"
+	"pleco-api/internal/domain"
 	"pleco-api/internal/httpx"
 
 	"github.com/gin-gonic/gin"
@@ -35,10 +36,12 @@ func (h *Handler) GetLogs(c *gin.Context) {
 		return
 	}
 
+	meta := httpx.BuildPaginationMeta(total, filter.Page, filter.Limit)
 	httpx.Success(c, 200, "Audit logs fetched", logs, gin.H{
-		"page":          filter.Page,
-		"limit":         filter.Limit,
-		"total":         total,
+		"page":          meta.Page,
+		"limit":         meta.Limit,
+		"total":         meta.Total,
+		"total_pages":   meta.TotalPages,
 		"action":        filter.Action,
 		"resource":      filter.Resource,
 		"status":        filter.Status,
@@ -83,11 +86,10 @@ func (h *Handler) InvestigateLogs(c *gin.Context) {
 
 	result, logs, err := h.AIService.Investigate(c.Request.Context(), filter)
 	if err != nil {
+		var apiErr *domain.APIError
 		switch {
-		case err.Error() == "ai investigator is not enabled":
-			httpx.Error(c, 503, err.Error())
-		case err.Error() == "no audit logs found for investigation":
-			httpx.Error(c, 404, err.Error())
+		case errors.Is(err, domain.ErrAIInvestigatorDisabled) || errors.As(err, &apiErr):
+			httpx.HandleError(c, err)
 		case errors.Is(err, ai.ErrTimeout):
 			httpx.Error(c, 504, "ai investigation timed out")
 		case errors.Is(err, ai.ErrInvalidStructuredOutput):
@@ -132,10 +134,12 @@ func (h *Handler) ListInvestigations(c *gin.Context) {
 		return
 	}
 
+	meta := httpx.BuildPaginationMeta(total, filter.Page, filter.Limit)
 	httpx.Success(c, 200, "Audit investigations fetched", items, gin.H{
-		"page":               filter.Page,
-		"limit":              filter.Limit,
-		"total":              total,
+		"page":               meta.Page,
+		"limit":              meta.Limit,
+		"total":              meta.Total,
+		"total_pages":        meta.TotalPages,
 		"resource":           filter.Resource,
 		"status":             filter.Status,
 		"created_by_user_id": filter.CreatedByUserID,
@@ -168,11 +172,11 @@ func (h *Handler) GetInvestigationByID(c *gin.Context) {
 }
 
 func buildFilter(c *gin.Context) (Filter, error) {
-	page, limit := paginationFromQuery(c)
+	pagination := httpx.ParsePagination(c)
 
 	filter := Filter{
-		Page:     page,
-		Limit:    limit,
+		Page:     pagination.Page(),
+		Limit:    pagination.Limit,
 		Action:   c.Query("action"),
 		Resource: c.Query("resource"),
 		Status:   c.Query("status"),
@@ -212,33 +216,12 @@ func buildFilter(c *gin.Context) (Filter, error) {
 	return filter, nil
 }
 
-func paginationFromQuery(c *gin.Context) (int, int) {
-	page := 1
-	limit := 10
-
-	if p := c.Query("page"); p != "" {
-		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
-			page = parsed
-		}
-	}
-	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			limit = parsed
-			if limit > 100 {
-				limit = 100
-			}
-		}
-	}
-
-	return page, limit
-}
-
 func buildInvestigationFilter(c *gin.Context) (InvestigationFilter, error) {
-	page, limit := paginationFromQuery(c)
+	pagination := httpx.ParsePagination(c)
 
 	filter := InvestigationFilter{
-		Page:       page,
-		Limit:      limit,
+		Page:       pagination.Page(),
+		Limit:      pagination.Limit,
 		Resource:   c.Query("resource"),
 		Status:     c.Query("status"),
 		AIProvider: c.Query("ai_provider"),

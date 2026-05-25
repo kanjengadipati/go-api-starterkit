@@ -5,15 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"pleco-api/internal/httpx"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"pleco-api/internal/cache"
+	"pleco-api/internal/domain"
 	"pleco-api/internal/erroroptimizer"
+	"pleco-api/internal/httpx"
 	"pleco-api/internal/modules/permission"
 	"pleco-api/internal/modules/user"
 	"pleco-api/internal/services"
@@ -79,8 +79,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			}
 		}
 
-		if strings.Contains(strings.ToLower(err.Error()), "duplicate") || strings.Contains(strings.ToLower(err.Error()), "unique") || strings.Contains(strings.ToLower(err.Error()), "already in use") {
-			httpx.ErrorWithCode(c, http.StatusBadRequest, httpx.ErrCodeEmailTaken, "Email already in use")
+		if errors.Is(err, domain.ErrConflict) {
+			httpx.ErrorWithCode(c, http.StatusConflict, httpx.ErrCodeEmailTaken, "Email already in use")
 			return
 		}
 		if errors.Is(err, services.ErrWeakPassword) {

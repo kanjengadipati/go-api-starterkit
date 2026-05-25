@@ -2,12 +2,13 @@ package role
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"time"
 
 	"pleco-api/internal/cache"
+	"pleco-api/internal/domain"
+	"pleco-api/internal/modules/audit"
 	permissionModule "pleco-api/internal/modules/permission"
 )
 
@@ -15,6 +16,7 @@ type Service struct {
 	RoleRepo       Repository
 	PermissionRepo permissionModule.Repository
 	Cache          cache.Store
+	AuditSvc       *audit.Service
 }
 
 func NewService(roleRepo Repository, permissionRepo permissionModule.Repository) *Service {
@@ -112,7 +114,7 @@ func (s *Service) UpdateRolePermissions(roleID uint, permissions []string) (*Rol
 		return nil, nil, err
 	}
 	if !exists {
-		return nil, nil, errors.New("one or more permissions are invalid")
+		return nil, nil, domain.ErrInvalidPermission
 	}
 
 	if err := s.PermissionRepo.ReplaceRolePermissions(roleID, normalized); err != nil {

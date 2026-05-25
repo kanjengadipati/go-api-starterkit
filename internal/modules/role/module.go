@@ -2,6 +2,7 @@ package role
 
 import (
 	"pleco-api/internal/cache"
+	"pleco-api/internal/modules/audit"
 	permissionModule "pleco-api/internal/modules/permission"
 
 	"gorm.io/gorm"
@@ -13,10 +14,11 @@ type Module struct {
 	Handler    *Handler
 }
 
-func BuildModule(db *gorm.DB, stores ...cache.Store) *Module {
+func BuildModule(db *gorm.DB, auditSvc *audit.Service, stores ...cache.Store) *Module {
 	repository := NewRepository(db)
 	permissionRepo := permissionModule.NewRepository(db)
 	service := NewService(repository, permissionRepo)
+	service.AuditSvc = auditSvc
 	if len(stores) > 0 {
 		service.Cache = stores[0]
 	}

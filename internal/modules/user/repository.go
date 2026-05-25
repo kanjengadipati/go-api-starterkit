@@ -4,6 +4,8 @@ import (
 	"strings"
 	"time"
 
+	"pleco-api/internal/domain"
+
 	"gorm.io/gorm"
 )
 
@@ -31,10 +33,13 @@ func NewRepository(db *gorm.DB) Repository {
 }
 
 func (r *GormRepository) Create(user *User) error {
+	var err error
 	if strings.TrimSpace(user.PhoneNumber) == "" {
-		return r.db.Omit("phone_number").Create(user).Error
+		err = r.db.Omit("phone_number").Create(user).Error
+	} else {
+		err = r.db.Create(user).Error
 	}
-	return r.db.Create(user).Error
+	return wrapError(err)
 }
 
 func (r *GormRepository) FindByEmail(email string) (*User, error) {
@@ -87,7 +92,8 @@ func (r *GormRepository) Update(user *User) error {
 	if user.Password != "" {
 		updates["password"] = user.Password
 	}
-	return r.db.Model(user).Updates(updates).Error
+	err := r.db.Model(user).Updates(updates).Error
+	return wrapError(err)
 }
 
 func (r *GormRepository) UpdateLastLogin(id uint, at time.Time) error {
@@ -157,4 +163,15 @@ func userTextSearchValues(db *gorm.DB, like string) []interface{} {
 	}
 	lowerLike := strings.ToLower(like)
 	return []interface{}{lowerLike, lowerLike, lowerLike}
+}
+
+func wrapError(err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "duplicate") || strings.Contains(msg, "unique") || strings.Contains(msg, "already in use") {
+		return domain.ErrConflict
+	}
+	return err
 }

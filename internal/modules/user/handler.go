@@ -25,37 +25,18 @@ func NewHandler(userService *Service) *Handler {
 }
 
 func (h *Handler) GetAllUsers(c *gin.Context) {
-	page := 1
-	limit := 10
-
-	if p := c.Query("page"); p != "" {
-		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
-			page = parsed
-		}
-	}
-	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			limit = parsed
-			if limit > 100 {
-				limit = 100
-			}
-		}
-	}
-
+	pagination := httpx.ParsePagination(c)
 	search := c.Query("search")
 	role := c.Query("role")
 
-	users, total, err := h.UserService.GetAllUsers(page, limit, search, role)
+	users, total, err := h.UserService.GetAllUsers(pagination.Page(), pagination.Limit, search, role)
 	if err != nil {
-		httpx.ErrorWithCode(c, 500, httpx.ErrCodeInternalError, "Failed to fetch roles")
+		httpx.HandleError(c, err)
 		return
 	}
 
-	httpx.Success(c, 200, "Users fetched", ToUserResponseList(users), gin.H{
-		"page":  page,
-		"limit": limit,
-		"total": total,
-	})
+	meta := httpx.BuildPaginationMeta(total, pagination.Page(), pagination.Limit)
+	httpx.Success(c, 200, "Users fetched", ToUserResponseList(users), meta)
 }
 
 func (h *Handler) GetUserByID(c *gin.Context) {
@@ -124,7 +105,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 
 	user, err := h.UserService.CreateUser(input)
 	if err != nil {
-		httpx.ErrorWithCode(c, 400, httpx.ErrCodeInternalError, err.Error())
+		httpx.HandleError(c, err)
 		return
 	}
 
@@ -148,7 +129,7 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 
 	user, err := h.UserService.UpdateUser(uint(id64), input)
 	if err != nil {
-		httpx.ErrorWithCode(c, 400, httpx.ErrCodeInternalError, err.Error())
+		httpx.HandleError(c, err)
 		return
 	}
 
@@ -173,7 +154,7 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 
 	user, err := h.UserService.UpdateProfile(userID, input)
 	if err != nil {
-		httpx.ErrorWithCode(c, 400, httpx.ErrCodeInternalError, err.Error())
+		httpx.HandleError(c, err)
 		return
 	}
 
@@ -222,7 +203,7 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 	callerID, _ := callerIDValue.(uint)
 
 	if err := h.UserService.DeleteUser(uint(id64), callerRole, callerID); err != nil {
-		httpx.ErrorWithCode(c, 400, httpx.ErrCodeInternalError, err.Error())
+		httpx.HandleError(c, err)
 		return
 	}
 

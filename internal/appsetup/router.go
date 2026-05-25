@@ -27,8 +27,8 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtSe
 		return err
 	}
 	permissionModule := permission.BuildModule(db, cacheStore)
-	roleModule := role.BuildModule(db, cacheStore)
 	auditModule := audit.BuildModule(db, aiService)
+	roleModule := role.BuildModule(db, auditModule.Service, cacheStore)
 	api.Use(middleware.SecurityAuditLogger(func(event middleware.SecurityAuditEvent) {
 		auditModule.Service.SafeRecord(audit.RecordInput{
 			ActorUserID: event.UserID,
