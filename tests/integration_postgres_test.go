@@ -169,4 +169,3 @@ func TestRoleHandler_AuditIntegration(t *testing.T) {
 	assert.Equal(t, uint(42), *logEntry.ActorUserID)
 	assert.Equal(t, "success", logEntry.Status)
 }
-
