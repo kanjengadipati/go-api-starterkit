@@ -115,7 +115,7 @@ func RunAPI(registerDocs func(*gin.Engine)) error {
 
 	if sqlDB, err := db.DB(); err == nil {
 		if err := sqlDB.Close(); err != nil {
-			return err
+			log.Printf("Warning: error closing database connection during shutdown: %v", err)
 		}
 	}
 
